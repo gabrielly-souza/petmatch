@@ -1,0 +1,291 @@
+/* src/pages/PetDetails.module.css - CÓDIGO ATUALIZADO E ESTILIZADO */
+
+.animal-detail-container {
+    max-width: 1000px; /* Aumentado para acomodar o layout de duas colunas */
+    margin: 40px auto;
+    padding: 35px; /* Um pouco mais de padding */
+    background-color: #fff;
+    border-radius: 15px; /* Mais arredondado */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); /* Sombra mais suave e proeminente */
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.animal-detail-container h2 {
+    color: #00749B; /* Accent Blue da paleta */
+    font-size: 2.8em; /* Um pouco maior */
+    margin-bottom: 25px; /* Mais espaço */
+    border-bottom: 2px solid #e5e7eb; /* Light Gray da paleta */
+    padding-bottom: 15px; /* Mais padding */
+    font-weight: 700; /* Mais bold */
+}
+
+/* Novo contêiner para o layout de duas colunas */
+.detail-content {
+    display: flex;
+    flex-wrap: wrap; /* Permite quebrar em telas menores */
+    gap: 30px; /* Espaço entre a imagem e os detalhes */
+    align-items: flex-start; /* Alinha o conteúdo ao topo */
+    margin-bottom: 30px; /* Espaço abaixo do conteúdo principal */
+}
+
+.detail-image-wrapper {
+    flex: 1; /* Ocupa o espaço disponível */
+    min-width: 300px; /* Largura mínima para a imagem */
+    max-width: 45%; /* Limita a largura da imagem para não ser muito grande */
+    display: flex; /* Para centralizar a imagem dentro do wrapper se necessário */
+    justify-content: center;
+    align-items: center;
+}
+
+.animal-image {
+    width: 100%; /* Ocupa a largura total do seu wrapper */
+    height: auto; /* Altura automática para manter proporção */
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    object-fit: cover;
+}
+
+.detail-info {
+    flex: 2; /* Ocupa mais espaço que a imagem */
+    min-width: 400px; /* Largura mínima para os detalhes */
+    text-align: left; /* Garante que o texto dos detalhes esteja alinhado à esquerda */
+}
+
+.animal-detail-container p {
+    font-size: 1.15em; /* Ligeiramente maior para melhor leitura */
+    color: #1f2937; /* Text Dark da paleta */
+    margin-bottom: 12px; /* Mais espaço entre os parágrafos */
+    line-height: 1.7; /* Melhor espaçamento entre linhas */
+    text-align: left;
+    padding-left: 0; /* Remove o padding-left anterior, já que o detail-info cuida do alinhamento */
+}
+
+.animal-detail-container p strong {
+    color: #006080; /* Accent Blue hover da paleta (mais escuro que o normal) */
+    font-weight: 600;
+}
+
+/* Novo grupo para os botões */
+.button-group {
+    display: flex;
+    flex-wrap: wrap; /* Permite quebrar em telas menores */
+    justify-content: center; /* Centraliza os botões */
+    gap: 20px; /* Espaço entre os botões */
+    margin-top: 30px; /* Margem superior para separar do conteúdo */
+    margin-bottom: 20px; /* Margem inferior */
+}
+
+/* Estilo para o botão de Entrar em Contato */
+.contact-button,
+.edit-button,
+.back-button {
+    flex: 1 1 auto; /* Permite que os botões cresçam e encolham */
+    max-width: 250px; /* Largura máxima consistente para todos os botões */
+    padding: 16px 35px; /* Mais padding para um botão mais robusto */
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.3em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.18);
+    letter-spacing: 0.5px;
+    text-decoration: none; /* Garante que links se pareçam com botões */
+    display: flex; /* Para centralizar o texto dentro do botão */
+    justify-content: center;
+    align-items: center;
+}
+
+.contact-button {
+    background-color: #E57373; /* Primary Red da paleta */
+}
+
+.contact-button:hover {
+    background-color: #D35F5F; /* Primary Red hover da paleta */
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.contact-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Estilo para o botão de Edição (se o usuário for o dono) */
+.edit-button {
+    background-color: #00749B; /* Accent Blue da paleta */
+}
+
+.edit-button:hover {
+    background-color: #006080; /* Accent Blue hover da paleta */
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilo para o botão Voltar */
+.back-button {
+    background-color: #6b7280; /* Text Gray da paleta */
+}
+
+.back-button:hover {
+    background-color: #4b5563; /* Text Medium da paleta (mais escuro) */
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilo para a caixa de informações de contato */
+.contact-info-box {
+    background-color: #e0f2f7; /* Um azul claro da paleta */
+    border: 1px solid #a0d9e7;
+    border-radius: 12px;
+    padding: 30px;
+    margin-top: 30px;
+    text-align: left;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.contact-info-box h3 {
+    color: #006080; /* Accent Blue hover da paleta */
+    font-size: 2em;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.contact-info-box p {
+    font-size: 1.1em;
+    color: #1f2937; /* Text Dark da paleta */
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.contact-info-box p strong {
+    color: #00749B; /* Accent Blue da paleta */
+}
+
+.contact-info-box a {
+    color: #00749B; /* Accent Blue da paleta */
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s ease;
+}
+
+.contact-info-box a:hover {
+    text-decoration: underline;
+    color: #0056b3; /* Um azul mais escuro no hover */
+}
+
+.contact-error-message {
+    color: #dc2626; /* Error Red da paleta */
+    background-color: #fee2e2; /* Fundo vermelho claro da paleta */
+    border: 1px solid #dc2626;
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 25px;
+    font-size: 1.1em;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Mensagens de estado */
+.loadingMessage,
+.errorMessage {
+    text-align: center;
+    padding: 25px;
+    margin-top: 40px;
+    font-size: 1.3em;
+    color: #4b5563; /* Text Medium da paleta */
+    background-color: #f9fafb; /* Fundo claro consistente da paleta */
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.errorMessage {
+    color: #dc2626; /* Error Red da paleta */
+    background-color: #fee2e2;
+    border-color: #dc2626;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .detail-content {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    .detail-image-wrapper {
+        max-width: 80%;
+        min-width: unset;
+    }
+    .animal-image {
+        max-height: 400px;
+    }
+    .detail-info {
+        min-width: unset;
+        width: 100%;
+    }
+    .button-group {
+        flex-direction: column; /* Empilha os botões em telas menores */
+        gap: 15px;
+    }
+    .contact-button, .edit-button, .back-button {
+        max-width: 80%; /* Ajusta a largura dos botões empilhados */
+        margin: 0 auto; /* Centraliza */
+    }
+}
+
+@media (max-width: 768px) {
+    .animal-detail-container {
+        padding: 25px;
+        margin: 25px auto;
+        border-radius: 10px;
+    }
+    .animal-detail-container h2 {
+        font-size: 2.2em;
+        margin-bottom: 20px;
+    }
+    .animal-detail-container p {
+        font-size: 1.05em;
+    }
+    .contact-info-box h3 {
+        font-size: 1.8em;
+    }
+    .contact-info-box p {
+        font-size: 1em;
+    }
+    .contact-button, .edit-button, .back-button {
+        padding: 12px 20px;
+        font-size: 1.1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .animal-detail-container {
+        padding: 20px;
+        margin: 20px auto;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .animal-detail-container h2 {
+        font-size: 1.6em;
+        margin-bottom: 15px;
+    }
+    .animal-detail-container p {
+        font-size: 0.95em;
+    }
+    .contact-info-box {
+        padding: 20px;
+    }
+    .contact-info-box h3 {
+        font-size: 1.5em;
+    }
+    .contact-button, .edit-button, .back-button {
+        max-width: 100%; /* Ocupa largura total em telas muito pequenas */
+    }
+}

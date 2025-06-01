@@ -1,0 +1,133 @@
+/* src/pages/AddPetPage.module.css */
+
+.addPetFormContainer {
+    max-width: 800px; /* Diminuído de 90vw para 800px */
+    width: 100%; /* Garante que ocupe a largura disponível até o max-width */
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    font-family: 'Arial', sans-serif;
+    color: #333;
+}
+
+.addPetFormContainer h2 {
+    text-align: center;
+    color: #E57373; /* Cor mantida do seu código */
+    margin-bottom: 30px;
+    font-size: 2.2em;
+    font-weight: bold;
+}
+
+.formGroup {
+    margin-bottom: 20px;
+}
+
+.formGroup label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+    font-size: 1.0em;
+}
+
+.formGroup input[type="text"],
+.formGroup input[type="number"],
+.formGroup input[type="file"],
+.formGroup select,
+.formGroup textarea {
+    width: calc(100% - 20px); /* 100% menos o padding */
+    padding: 12px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    color: #333;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+    border-color: #4CAF50; /* Cor mantida do seu código */
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.2);
+    outline: none;
+}
+
+.formGroup textarea {
+    resize: vertical; /* Permite redimensionar verticalmente */
+    min-height: 100px;
+}
+
+.checkboxGroup {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap; /* Para quebrar linhas se houver muitos checkboxes */
+    gap: 15px; /* Espaçamento entre os itens */
+}
+
+.checkboxItem {
+    display: flex;
+    align-items: center;
+}
+
+.checkboxItem input[type="checkbox"] {
+    margin-right: 8px;
+    width: 18px;
+    height: 18px;
+    accent-color: #4CAF50; /* Cor mantida do seu código */
+}
+
+.submitButton {
+    width: 100%;
+    padding: 15px;
+    background-color: #E57373; /* Cor mantida do seu código */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    margin-top: 20px;
+    /* Ajustes para diminuir a largura e centralizar */
+    max-width: 250px; /* Largura máxima para o botão */
+    margin-left: auto;
+    margin-right: auto;
+    display: block; /* Garante que o botão seja um bloco para centralização com margin: auto */
+}
+
+.submitButton:hover {
+    background-color: #c56161; /* Cor mantida do seu código */
+    transform: translateY(-2px); /* Pequeno efeito de levantar */
+}
+
+.errorMessage {
+    color: #d9534f; /* Cor mantida do seu código */
+    background-color: #f2dede;
+    border: 1px solid #ebccd1;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* Adicionado estilo para a mensagem de sucesso para consistência */
+.successMessage {
+    color: #059669; /* Success Green da paleta */
+    background-color: #d1fae5; /* Fundo verde claro da paleta */
+    border: 1px solid #059669; /* Borda com Success Green */
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .addPetFormContainer {
+        margin: 20px;
+        padding: 20px;
+        max-width: 100%; /* Em telas menores, ocupa a largura total */
+    }
+}

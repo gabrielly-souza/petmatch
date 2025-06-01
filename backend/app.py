@@ -1,19 +1,16 @@
-# app.py
-
 import os
-from flask import Flask, request, jsonify, send_from_directory # send_from_directory adicionado aqui
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
-# Adicione 'json' aqui se não estiver importado para json.dumps/loads
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, decode_token, get_jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, DecodeError, InvalidSignatureError, InvalidAudienceError, InvalidIssuerError
 from dotenv import load_dotenv
 import google.generativeai as genai
-import json # Garanta que 'json' está importado
+import json
 from datetime import timedelta
 import traceback
-from werkzeug.utils import secure_filename 
+from werkzeug.utils import secure_filename
 
 # 1. CARREGAR VARIÁVEIS DE AMBIENTE
 load_dotenv()
@@ -42,16 +39,8 @@ app.config["JWT_CSRF_ENABLED"] = False
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
-print(f"DEBUG FLASK-JWT-EXTENDED: JWT_CSRF_ENABLED = {app.config.get('JWT_CSRF_ENABLED')}")
-
-# Configurações de Upload de Arquivos (MANTIDAS)
-UPLOAD_FOLDER = 'uploads' # Pasta para salvar as fotos. Será criada na raiz do projeto Flask.
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limite de 16MB para o arquivo
-
 # ========================================================================
-# MANIPULADORES DE ERRO PERSONALIZADOS PARA JWT-EXTENDED (REMOVIDO csrf_token_loader)
+# MANIPULADORES DE ERRO PERSONALIZADOS PARA JWT-EXTENDED
 # ========================================================================
 @jwt.unauthorized_loader
 def unauthorized_response(callback):
@@ -70,6 +59,12 @@ def revoked_token_response(callback):
     return jsonify({"message": "Token revogado."}), 401
 
 # ========================================================================
+
+# Configurações de Upload de Arquivos
+UPLOAD_FOLDER = 'uploads' # Pasta para salvar as fotos. Será criada na raiz do projeto Flask.
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limite de 16MB para o arquivo
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
@@ -112,7 +107,7 @@ class Animal(db.Model):
     cores = db.Column(db.String(255))
     saude = db.Column(db.String(255))
     descricao = db.Column(db.Text)
-    foto_principal_url = db.Column(db.String(255)) # URL da foto principal (MANTIDO)
+    foto_principal_url = db.Column(db.String(255))
     status_adocao = db.Column(db.String(50), default='Disponível')
     data_cadastro = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
     ong_protetor_id = db.Column(db.Integer, db.ForeignKey('ongs_protetores.id'), nullable=False)
@@ -157,7 +152,6 @@ class InteracaoChatbot(db.Model):
 
 # 5. FUNÇÕES AUXILIARES
 
-# Função auxiliar para verificar tipos de arquivo permitidos (ADICIONADO)
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -246,6 +240,32 @@ def setup_chat():
 
 
 # 7. ROTAS FLASK
+
+# --- Rota para buscar informações de contato da ONG/Protetor ---
+@app.route('/api/ong-protetor/<int:ong_protetor_id>/contact', methods=['GET'])
+# Removi o @jwt_required() para permitir acesso público, mas você pode adicionar de volta se precisar.
+def get_ong_protetor_contact(ong_protetor_id):
+    try:
+        ong_protetor = OngProtetor.query.get(ong_protetor_id)
+        
+        if not ong_protetor:
+            return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+
+        contact_data = {
+            "id": ong_protetor.id,
+            "nome_organizacao": ong_protetor.nome_organizacao, # Usando nome_organizacao para ONG/Protetor
+            "email": ong_protetor.email,
+            "telefone": ong_protetor.telefone,
+            "endereco": ong_protetor.endereco,
+        }
+        return jsonify(contact_data), 200
+
+    except Exception as e:
+        print(f"ERRO ao buscar contato da ONG/Protetor {ong_protetor_id}: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"message": f"Erro ao buscar informações de contato: {str(e)}"}), 500
+
+
 @app.route('/api/animals/<int:animal_id>', methods=['GET'])
 def get_animal_details(animal_id):
     try:
@@ -254,7 +274,6 @@ def get_animal_details(animal_id):
         if not animal:
             return jsonify({"message": "Animal não encontrado."}), 404
         
-        # Coleta as personalidades do animal, assim como você faz em get_animals
         personalidades_nomes = []
         for ap in animal.personalidades_list:
             if ap.personalidade:
@@ -273,7 +292,7 @@ def get_animal_details(animal_id):
             "descricao": animal.descricao,
             "foto_principal_url": animal.foto_principal_url,
             "status_adocao": animal.status_adocao,
-            "ong_protetor_id": animal.ong_protetor_id,
+            "ong_protetor_id": animal.ong_protetor_id, # ESSENCIAL PARA O FRONTEND
             "personalidades": personalidades_nomes
         }
         return jsonify(animal_data), 200
@@ -293,16 +312,13 @@ def register_user():
     telefone = data.get('telefone')
     endereco = data.get('endereco')
     
-    # NOVOS CAMPOS para ONG/Protetor
     nome_organizacao = data.get('nome_organizacao')
-    cnpj_cpf = data.get('cnpj_cpf') # Pode ser CNPJ para ONG ou CPF para protetor individual
+    cnpj_cpf = data.get('cnpj_cpf')
 
     if not email or not senha:
         return jsonify({"message": "Email e senha são obrigatórios."}), 400
 
-    # Determina o tipo de registro (usuário ou ONG/Protetor)
     if nome_organizacao and cnpj_cpf:
-        # Tenta registrar como ONG/Protetor
         if OngProtetor.query.filter_by(email=email).first():
             return jsonify({"message": "Email já registrado para ONG/Protetor."}), 409
 
@@ -314,17 +330,16 @@ def register_user():
             telefone=telefone,
             endereco=endereco,
             cnpj_cpf=cnpj_cpf,
-            aprovado=False # Por padrão, ONGs precisam de aprovação (depois um admin aprovaria)
+            aprovado=False
         )
         db.session.add(new_ong)
         db.session.commit()
         return jsonify({"message": "ONG/Protetor registrado com sucesso! Aguardando aprovação.", "role": "ong_protetor"}), 201
     else:
-        # Tenta registrar como Usuário normal
         if Usuario.query.filter_by(email=email).first():
             return jsonify({"message": "Email já registrado para usuário."}), 409
         
-        if not nome: # Nome é obrigatório para usuário normal
+        if not nome:
             return jsonify({"message": "Nome é obrigatório para registro de usuário."}), 400
 
         hashed_password = bcrypt.generate_password_hash(senha).decode('utf-8')
@@ -348,15 +363,11 @@ def login_user():
     if not email or not senha:
         return jsonify({"message": "Email e senha são obrigatórios."}), 400
 
-    # Tenta logar como usuário normal
     user = Usuario.query.filter_by(email=email).first()
     if user and bcrypt.check_password_hash(user.senha_hash, senha):
-        # identity={'id': user.id, 'role': 'usuario'} se torna string JSON
         access_token = create_access_token(identity=json.dumps({'id': user.id, 'role': 'usuario'}))
-        print(f"DEBUG LOGIN (USUARIO): Token para usuário: {access_token[:60]}...")
         return jsonify(access_token=access_token, message="Login de usuário bem-sucedido!", role="usuario"), 200
 
-    # Tenta logar como ONG/Protetor
     ong_protetor = OngProtetor.query.filter_by(email=email).first()
     if ong_protetor and bcrypt.check_password_hash(ong_protetor.senha_hash, senha):
         if not ong_protetor.aprovado:
@@ -364,28 +375,10 @@ def login_user():
         
         expires = timedelta(hours=24)
         
-        print(f"DEBUG LOGIN (ONG): JWT_CSRF_ENABLED ANTES DE CRIAR TOKEN: {app.config.get('JWT_CSRF_ENABLED')}")
-
-        # identity={'id': ong_protetor.id, 'role': 'ong_protetor'} se torna string JSON
         access_token = create_access_token(
             identity=json.dumps({'id': ong_protetor.id, 'role': 'ong_protetor'}),
             expires_delta=expires
         )
-        
-        # Verifique se o token final NÃO TEM CSRF (apenas para depuração)
-        try:
-            # decode_token espera o 'sub' como string, então isso deve funcionar agora
-            decoded_token_check = decode_token(access_token)
-            if 'csrf' in decoded_token_check:
-                print("ERRO INESPERADO: 'csrf' AINDA PRESENTE no token após create_access_token, mesmo com JWT_CSRF_ENABLED=False (v4.x.x).")
-            else:
-                print("SUCESSO: Token gerado LIMPO de 'csrf' (v4.x.x).")
-            print(f"DEBUG LOGIN (ONG): Claims do TOKEN FINAL DECODIFICADO (APÓS GERAÇÃO): {decoded_token_check}")
-        except Exception as e:
-            print(f"ERRO DEBUG: Falha ao decodificar token final para inspeção (após upgrade e mudança de identity): {e}")
-            traceback.print_exc()
-
-        print(f"DEBUG LOGIN (ONG): TOKEN SENDO ENVIADO AO FRONTEND (APÓS UPGRADE E MUDANÇA DE IDENTITY): {access_token[:60]}...")
         return jsonify(access_token=access_token, message="Login de ONG/Protetor bem-sucedido!", role="ong_protetor"), 200
         
     return jsonify({"message": "Email ou senha inválidos."}), 401
@@ -402,10 +395,6 @@ def chat_endpoint():
         response = chat.send_message(user_message)
         ia_resposta = response.text
 
-        print(f"\n--- Depuração da IA ---")
-        print(f"Mensagem do usuário: {user_message}")
-        print(f"Resposta COMPLETA da IA: \n{ia_resposta}\n")
-
         preferencias_json = {}
         try:
             if '```json' in ia_resposta and '```' in ia_resposta:
@@ -413,22 +402,15 @@ def chat_endpoint():
                 json_end = ia_resposta.find('```', json_start)
                 json_str = ia_resposta[json_start:json_end].strip()
                 preferencias_json = json.loads(json_str)
-                print(f"DEBUG: JSON extraído com sucesso: {preferencias_json}")
-            else:
-                print("DEBUG: Nenhum bloco JSON encontrado na resposta da IA.")
-
-        except json.JSONDecodeError as e:
-            print(f"ERRO DEBUG: Não foi possível decodificar JSON da IA: {e}")
+        except json.JSONDecodeError:
+            pass # Ignora erros de JSON se não for um JSON válido
 
         especie_desejada = preferencias_json.get("especie")
         porte_desejado = preferencias_json.get("porte")
         personalidade_keywords = preferencias_json.get("temperamento", [])
         energia_desejada = preferencias_json.get("energia")
         idade_desejada = preferencias_json.get("idade")
-        # Garante que a string de personalidades seja definida antes de ser usada no f-string maior.
         personalidades_formatadas = ', '.join(personalidade_keywords) if personalidade_keywords else 'Não especificado'
-        print(f"Preferências finais para busca: Espécie={especie_desejada}, Porte={porte_desejado}, Personalidade={personalidade_keywords}, Energia={energia_desejada}, Idade={idade_desejada}")
-        print(f"--- Fim Depuração da IA ---\n")
 
         pets_encontrados = []
         with app.app_context():
@@ -475,13 +457,9 @@ def get_animals():
         animals = Animal.query.filter_by(status_adocao='Disponível').all()
         animals_data = []
         for animal in animals:
-            # Garanta que personalidades_nomes está coletando os nomes corretamente
             personalidades_nomes = []
-            # animal.personalidades_list é a backref que criamos em AnimalPersonalidade
-            # e ela contém objetos AnimalPersonalidade.
-            # Cada objeto AnimalPersonalidade tem uma relação com 'personalidade'.
             for ap in animal.personalidades_list:
-                if ap.personalidade: # Verifica se a personalidade existe
+                if ap.personalidade:
                     personalidades_nomes.append(ap.personalidade.nome)
 
             animals_data.append({
@@ -498,7 +476,7 @@ def get_animals():
                 "foto_principal_url": animal.foto_principal_url,
                 "status_adocao": animal.status_adocao,
                 "ong_protetor_id": animal.ong_protetor_id,
-                "personalidades": personalidades_nomes # <-- Certifique-se de que esta linha está correta
+                "personalidades": personalidades_nomes
             })
         return jsonify(animals_data), 200
     except Exception as e:
@@ -509,59 +487,35 @@ def get_animals():
 @app.route('/api/animals', methods=['POST'])
 @jwt_required()
 def create_animal():
-    try:
-        # Pega os claims brutos do token para depuração
-        claims = get_jwt()
-        print("DEBUG: Claims do token JWT (get_jwt()):", claims)
-        # Se 'csrf' ainda aparece aqui, é um mistério e vamos tentar debuggar
-        if 'csrf' in claims:
-            print("AVISO CRÍTICO: 'csrf' claim ENCONTRADO no token, mesmo após o upgrade. Isso é MUITO INESPERADO.")
-            # Nao retornamos mais 422 por isso, pois agora JWT_CSRF_ENABLED=False deve estar funcionando
+    file_path = None # Inicializa para garantir que está sempre definido
 
-        # IMPORTANTE: get_jwt_identity() AGORA RETORNA UMA STRING JSON, PRECISA DO json.loads()
+    try:
         current_user_identity_str = get_jwt_identity()
         current_user_identity = json.loads(current_user_identity_str)
-
-        print("DEBUG: current_user_identity recebido (parsed):", current_user_identity)
         
         if current_user_identity is None:
-            print("DEBUG: current_user_identity é None. Token pode estar inválido ou faltando identidade.")
             return jsonify({"message": "Token JWT inválido ou identidade faltando."}), 401
 
         user_id = current_user_identity.get('id')
         user_role = current_user_identity.get('role')
-        print(f"DEBUG: user_id: {user_id}, user_role: {user_role}")
 
-        # Apenas ONGs/Protetores podem cadastrar animais
         if user_role != 'ong_protetor':
-            print(f"DEBUG: Tentativa de cadastro por role inválido: {user_role}")
             return jsonify({"message": "Apenas ONGs/Protetores podem cadastrar animais."}), 403
 
-        # Validação da ONG/Protetor (agora deve passar)
         ong_protetor = OngProtetor.query.get(user_id)
         if not ong_protetor or not ong_protetor.aprovado:
-            print(f"DEBUG: ONG/Protetor (ID: {user_id}) não encontrada ou não aprovada.")
             return jsonify({"message": "ONG/Protetor não encontrado ou não aprovado."}), 403
 
-        # AQUI COMEÇA O TRATAMENTO DE FormData para upload e dados
-        # O frontend deve enviar os dados como FormData, não como JSON.
-        # request.form para campos de texto, request.files para arquivos.
-        
-        # Lida com o upload do arquivo
         foto_url = None
-        file_path = None # Para garantir que file_path esteja definido para remoção em caso de erro
-        
         if 'foto_principal' in request.files:
             file = request.files['foto_principal']
             if file.filename != '':
                 if file and allowed_file(file.filename):
                     filename = secure_filename(file.filename)
-                    # Cria a pasta de uploads se ela não existir
                     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
                     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     file.save(file_path)
-                    # A URL que o frontend usará para exibir a imagem
-                    foto_url = f"http://localhost:5000/uploads/{filename}" # AJUSTE ISSO SE SEU BACKEND RODAR EM OUTRO ENDEREÇO/PORTA
+                    foto_url = f"http://localhost:5000/uploads/{filename}"
                 else:
                     return jsonify({"message": "Tipo de arquivo não permitido ou erro no upload."}), 400
             else:
@@ -569,8 +523,6 @@ def create_animal():
         else:
             return jsonify({"message": "Campo 'foto_principal' ausente no formulário."}), 400
 
-
-        # Coleta os outros dados do formulário enviados via FormData (request.form)
         nome = request.form.get('nome')
         especie = request.form.get('especie')
         raca = request.form.get('raca')
@@ -579,23 +531,13 @@ def create_animal():
         sexo = request.form.get('sexo')
         cores = request.form.get('cores')
         saude = request.form.get('saude')
-        # getlist() para pegar múltiplos valores de checkboxes, por exemplo
-        personalidades_nomes = request.form.getlist('personalidades[]') # O nome do campo pode variar (e.g., 'personalidades' ou 'personalidades[]')
+        personalidades_nomes = request.form.getlist('personalidades[]')
         descricao = request.form.get('descricao')
         status_adocao = request.form.get('status_adocao', 'Disponível')
 
-        print("DEBUG: Dados recebidos do formulário:", {
-            "nome": nome, "especie": especie, "raca": raca, "porte": porte,
-            "idade_texto": idade_texto, "sexo": sexo, "cores": cores,
-            "saude": saude, "personalidades": personalidades_nomes,
-            "descricao": descricao, "foto_url": foto_url, "status": status_adocao
-        })
-
-        # Validações básicas dos dados do animal
         required_fields = ["nome", "especie", "porte", "idade_texto", "sexo", "descricao"]
         for field in required_fields:
-            if not locals()[field]: # Verifica se a variável local correspondente ao campo está vazia
-                # Se algum campo obrigatório estiver faltando, remove o arquivo salvo
+            if not request.form.get(field): # Usa request.form.get para verificar campos
                 if file_path and os.path.exists(file_path):
                     os.remove(file_path)
                 return jsonify({"message": f"Campo '{field}' é obrigatório."}), 400
@@ -606,8 +548,7 @@ def create_animal():
             if personalidade_db:
                 personalidades_objetos.append(personalidade_db)
             else:
-                print(f"AVISO: Personalidade '{p_nome}' não encontrada no banco de dados. Ignorando ou considere adicionar.")
-                # Opcional: retornar erro ou criar a personalidade aqui
+                print(f"AVISO: Personalidade '{p_nome}' não encontrada no banco de dados. Ignorando.")
 
         novo_animal = Animal(
             nome=nome,
@@ -619,189 +560,33 @@ def create_animal():
             cores=cores,
             saude=saude,
             descricao=descricao,
-            foto_principal_url=foto_url, # Usa a URL da foto salva
+            foto_principal_url=foto_url,
             status_adocao=status_adocao,
-            ong_protetor_id=user_id # Usa o ID da ONG do token JWT
+            ong_protetor_id=user_id
         )
 
         db.session.add(novo_animal)
-        db.session.commit() # Commit para que novo_animal.id seja gerado
+        db.session.commit()
 
-        # Associa personalidades ao animal
         for pers_obj in personalidades_objetos:
             animal_personalidade = AnimalPersonalidade(animal=novo_animal, personalidade=pers_obj)
             db.session.add(animal_personalidade)
         
-        db.session.commit() # Commit das associações de personalidades
+        db.session.commit()
 
         return jsonify({"message": "Animal cadastrado com sucesso!", "animal_id": novo_animal.id}), 201
-    except InvalidTokenError as e:
-        print(f"ERRO JWT (InvalidTokenError): {str(e)}")
-        # Se houve um erro no token e um arquivo foi salvo, remova-o
+    except Exception as e: # Captura exceções mais genéricas para logs
         if 'file_path' in locals() and file_path and os.path.exists(file_path):
             os.remove(file_path)
-        return jsonify({"message": f"Token JWT inválido: {str(e)}"}), 401
-    except ExpiredSignatureError:
-        print("ERRO JWT: Token expirado.")
-        if 'file_path' in locals() and file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        return jsonify({"message": "Token JWT expirado. Faça login novamente."}), 401
-    except (DecodeError, InvalidSignatureError, InvalidAudienceError, InvalidIssuerError) as e:
-        print(f"ERRO JWT (Decodificação/Assinatura): {str(e)}")
-        if 'file_path' in locals() and file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        return jsonify({"message": f"Erro de decodificação ou assinatura do token: {str(e)}"}), 401
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERRO CRÍTICO ao cadastrar animal (Geral): {str(e)}")
+        print(f"ERRO ao criar animal: {str(e)}")
         traceback.print_exc()
-        # Em caso de erro geral, remova o arquivo salvo
-        if 'file_path' in locals() and file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        return jsonify({"message": f"Erro interno do servidor ao cadastrar animal: {str(e)}"}), 500
+        return jsonify({"message": f"Erro ao cadastrar animal: {str(e)}"}), 500
 
-@app.route('/api/animals/<int:animal_id>', methods=['PUT'])
-@jwt_required()
-def update_animal(animal_id):
-    try:
-        current_user_identity_str = get_jwt_identity()
-        current_user_identity = json.loads(current_user_identity_str)
-        user_id = current_user_identity.get('id')
-        user_role = current_user_identity.get('role')
+# Rota para servir arquivos estáticos (fotos)
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-        # 1. Apenas ONGs/Protetores podem editar animais
-        if user_role != 'ong_protetor':
-            return jsonify({"message": "Apenas ONGs/Protetores podem editar animais."}), 403
-
-        # 2. Busca o animal pelo ID
-        animal = Animal.query.get(animal_id)
-        if not animal:
-            return jsonify({"message": "Animal não encontrado."}), 404
-
-        # 3. Verifica se a ONG/Protetor logada é a dona do animal
-        if animal.ong_protetor_id != user_id:
-            return jsonify({"message": "Você não tem permissão para editar este animal."}), 403
-
-        # Dados podem vir de FormData (se inclui arquivo) ou JSON (se não inclui arquivo)
-        is_multipart_form = request.content_type and 'multipart/form-data' in request.content_type
-
-        # Lida com o upload do arquivo se houver (ADICIONADO/MODIFICADO)
-        foto_url = animal.foto_principal_url # Mantém a URL existente por padrão
-        file_path = None # Para controle de remoção em caso de erro
-
-        if 'foto_principal' in request.files: # Se um novo arquivo foi enviado
-            file = request.files['foto_principal']
-            if file.filename != '':
-                if allowed_file(file.filename):
-                    # Se há uma foto antiga, tente removê-la para não acumular lixo
-                    if animal.foto_principal_url:
-                        old_filename = os.path.basename(animal.foto_principal_url)
-                        old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
-                        if os.path.exists(old_file_path):
-                            os.remove(old_file_path)
-                            print(f"DEBUG: Foto antiga removida: {old_file_path}")
-                    
-                    filename = secure_filename(file.filename)
-                    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
-                    foto_url = f"http://localhost:5000/uploads/{filename}" # AJUSTE ISSO SE SEU BACKEND RODAR EM OUTRO ENDEREÇO/PORTA
-                else:
-                    return jsonify({"message": "Tipo de arquivo não permitido para foto principal."}), 400
-            # Se o campo 'foto_principal' está no request.files, mas o filename está vazio,
-            # significa que o usuário talvez queira remover a foto.
-            # Você pode adicionar uma lógica aqui para definir foto_url como None se for o caso.
-            # Ex: elif file.filename == '' and 'clear_foto' in request.form: foto_url = None
-        
-        # Coleta os outros dados. Se for multipart/form-data, use request.form. Senão, request.get_json().
-        if is_multipart_form:
-            data = request.form
-            personalidades_nomes = request.form.getlist('personalidades[]')
-        else:
-            data = request.get_json()
-            personalidades_nomes = data.get('personalidades', [])
-
-
-        # 4. Atualiza os campos do animal
-        animal.nome = data.get('nome', animal.nome)
-        animal.especie = data.get('especie', animal.especie)
-        animal.raca = data.get('raca', animal.raca)
-        animal.porte = data.get('porte', animal.porte)
-        animal.idade_texto = data.get('idade_texto', animal.idade_texto)
-        animal.sexo = data.get('sexo', animal.sexo)
-        animal.cores = data.get('cores', animal.cores)
-        animal.saude = data.get('saude', animal.saude)
-        animal.descricao = data.get('descricao', animal.descricao)
-        animal.foto_principal_url = foto_url # Atualiza a URL da foto (pode ser a nova ou a antiga)
-        animal.status_adocao = data.get('status_adocao', animal.status_adocao)
-
-        # 5. Atualiza as personalidades (maneira mais robusta: deleta tudo e recria)
-        
-        # Remove todas as personalidades existentes para este animal
-        AnimalPersonalidade.query.filter_by(animal_id=animal.id).delete()
-        db.session.commit() # Commit para efetivar a exclusão antes de adicionar novos
-
-        # Adiciona as novas personalidades
-        personalidades_objetos = []
-        for p_name in personalidades_nomes:
-            personalidade_db = Personalidade.query.filter_by(nome=p_name).first()
-            if personalidade_db:
-                personalidades_objetos.append(personalidade_db)
-            else:
-                print(f"AVISO: Personalidade '{p_name}' não encontrada no banco de dados. Ignorando ou considere criar.")
-                # Opcional: criar personalidade se não existir, ou retornar erro
-        
-        for pers_obj in personalidades_objetos:
-            animal_personalidade = AnimalPersonalidade(animal=animal, personalidade=pers_obj)
-            db.session.add(animal_personalidade)
-            
-        db.session.commit() # Commit das associações de personalidades e atualização do animal
-
-        return jsonify({"message": "Animal atualizado com sucesso!"}), 200
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERRO CRÍTICO ao atualizar animal (Geral): {str(e)}")
-        traceback.print_exc()
-        # Em caso de erro, se uma nova foto foi salva, tente removê-la
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        return jsonify({"message": f"Erro interno do servidor ao atualizar animal: {str(e)}"}), 500
-
-@app.route('/api/animals/<int:animal_id>', methods=['DELETE'])
-@jwt_required()
-def delete_animal(animal_id):
-    try:
-        current_user_identity_str = get_jwt_identity()
-        current_user_identity = json.loads(current_user_identity_str)
-        user_id = current_user_identity.get('id')
-        user_role = current_user_identity.get('role')
-
-        if user_role != 'ong_protetor':
-            return jsonify({"message": "Apenas ONGs/Protetores podem deletar animais."}), 403
-
-        animal = Animal.query.get(animal_id)
-        if not animal:
-            return jsonify({"message": "Animal não encontrado."}), 404
-
-        if animal.ong_protetor_id != user_id:
-            return jsonify({"message": "Você não tem permissão para deletar este animal."}), 403
-        
-        # Opcional: remover a foto do sistema de arquivos antes de deletar o registro do BD
-        if animal.foto_principal_url:
-            filename = os.path.basename(animal.foto_principal_url)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"DEBUG: Foto do animal {animal.id} removida do disco: {file_path}")
-
-        db.session.delete(animal)
-        db.session.commit()
-        return jsonify({"message": "Animal deletado com sucesso!"}), 200
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERRO ao deletar animal: {str(e)}")
-        traceback.print_exc()
-        return jsonify({"message": f"Erro interno do servidor ao deletar animal: {str(e)}"}), 500
 
 # Rota para obter animais de uma ONG/Protetor específica (protegida por JWT)
 @app.route('/api/my-animals', methods=['GET'])
@@ -842,34 +627,253 @@ def get_my_animals():
         print(f"ERRO ao buscar 'meus' animais: {str(e)}")
         traceback.print_exc()
         return jsonify({"message": f"Erro interno do servidor ao buscar 'meus' animais: {str(e)}"}), 500
+    
+# Adicione esta rota se você tiver uma página de "minha conta" para usuários
+@app.route('/api/user/me', methods=['GET', 'PUT']) # Rota para GET e PUT
+@jwt_required()
+def get_user_profile():
+    current_user_identity_str = get_jwt_identity()
+    current_user_identity = json.loads(current_user_identity_str)
+    user_id = current_user_identity['id']
+    user_role = current_user_identity['role']
 
-# Rota para servir arquivos estáticos da pasta 'uploads' (ADICIONADO)
-# IMPORTANTE: Esta rota é adequada APENAS PARA DESENVOLVIMENTO.
-# Em produção, você deve configurar um servidor web dedicado (ex: Nginx, Apache) ou um serviço de
-# armazenamento de objetos (ex: AWS S3, Google Cloud Storage) para servir arquivos estáticos de forma eficiente e segura.
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # Lógica para requisições PUT (Atualizar perfil)
+    if request.method == 'PUT':
+        data = request.get_json()
 
-# 8. INICIAR O SERVIDOR FLASK
+        if user_role == 'usuario':
+            user = Usuario.query.get(user_id)
+            if not user:
+                return jsonify({"message": "Usuário não encontrado."}), 404
+
+            # Campos para atualização
+            user.nome = data.get('nome', user.nome)
+            # Email não deve ser alterado via esta rota (geralmente exige processo de verificação)
+            # user.email = data.get('email', user.email) 
+
+            # VALIDAÇÃO E LIMPEZA DE TELEFONE E ENDEREÇO AQUI:
+            # Telefone
+            telefone_input = data.get('telefone')
+            # Verifica se o campo foi enviado E não está vazio/apenas espaços
+            if not telefone_input or not str(telefone_input).strip():
+                return jsonify({"message": "O campo Telefone é obrigatório."}), 400
+            
+            cleaned_telefone = ''.join(filter(str.isdigit, telefone_input))
+            if not (10 <= len(cleaned_telefone) <= 11):
+                return jsonify({"message": "Formato de telefone inválido. Deve ter 10 ou 11 dígitos numéricos (DDD + número)."}), 400
+            user.telefone = cleaned_telefone
+            
+            # Endereço
+            endereco_input = data.get('endereco')
+            # Verifica se o campo foi enviado E não está vazio/apenas espaços
+            if not endereco_input or not str(endereco_input).strip():
+                return jsonify({"message": "O campo Endereço é obrigatório."}), 400
+            
+            stripped_endereco = str(endereco_input).strip()
+            if not (5 <= len(stripped_endereco) <= 255):
+                return jsonify({"message": "Endereço inválido. Deve ter entre 5 e 255 caracteres."}), 400
+            user.endereco = stripped_endereco
+            
+            db.session.commit()
+            return jsonify({"message": "Perfil de usuário atualizado com sucesso!", "profile": {
+                "id": user.id,
+                "nome": user.nome,
+                "email": user.email, # Retorna o email, mesmo que não seja atualizado
+                "telefone": user.telefone,
+                "endereco": user.endereco,
+                "role": "usuario"
+            }}), 200
+
+        elif user_role == 'ong_protetor':
+            ong = OngProtetor.query.get(user_id)
+            if not ong:
+                return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+            
+            # Campos para atualização
+            ong.nome_organizacao = data.get('nome_organizacao', ong.nome_organizacao)
+            ong.cnpj_cpf = data.get('cnpj_cpf', ong.cnpj_cpf)
+            # Email não deve ser alterado via esta rota
+            # ong.email = data.get('email', ong.email)
+
+            # VALIDAÇÃO E LIMPEZA DE TELEFONE E ENDEREÇO AQUI PARA ONG/PROTETOR:
+            # Telefone
+            telefone_input = data.get('telefone')
+            # Verifica se o campo foi enviado E não está vazio/apenas espaços
+            if not telefone_input or not str(telefone_input).strip():
+                return jsonify({"message": "O campo Telefone é obrigatório."}), 400
+            
+            cleaned_telefone = ''.join(filter(str.isdigit, telefone_input))
+            if not (10 <= len(cleaned_telefone) <= 11):
+                return jsonify({"message": "Formato de telefone inválido. Deve ter 10 ou 11 dígitos numéricos (DDD + número)."}), 400
+            ong.telefone = cleaned_telefone
+            
+            # Endereço
+            endereco_input = data.get('endereco')
+            # Verifica se o campo foi enviado E não está vazio/apenas espaços
+            if not endereco_input or not str(endereco_input).strip():
+                return jsonify({"message": "O campo Endereço é obrigatório."}), 400
+            
+            stripped_endereco = str(endereco_input).strip()
+            if not (5 <= len(stripped_endereco) <= 255):
+                return jsonify({"message": "Endereço inválido. Deve ter entre 5 e 255 caracteres."}), 400
+            ong.endereco = stripped_endereco
+
+            db.session.commit()
+            return jsonify({"message": "Perfil de ONG/Protetor atualizado com sucesso!", "profile": {
+                "id": ong.id,
+                "nome_organizacao": ong.nome_organizacao,
+                "email": ong.email, # Retorna o email, mesmo que não seja atualizado
+                "telefone": ong.telefone,
+                "endereco": ong.endereco,
+                "cnpj_cpf": ong.cnpj_cpf,
+                "aprovado": ong.aprovado,
+                "role": "ong_protetor"
+            }}), 200
+
+    # Lógica para requisições GET (Obter perfil)
+    elif request.method == 'GET':
+        if user_role == 'usuario':
+            user = Usuario.query.get(user_id)
+            if user:
+                return jsonify({
+                    "id": user.id,
+                    "nome": user.nome,
+                    "email": user.email,
+                    "telefone": user.telefone,
+                    "endereco": user.endereco,
+                    "role": "usuario"
+                }), 200
+        elif user_role == 'ong_protetor':
+            ong = OngProtetor.query.get(user_id)
+            if ong:
+                return jsonify({
+                    "id": ong.id,
+                    "nome_organizacao": ong.nome_organizacao,
+                    "email": ong.email,
+                    "telefone": ong.telefone,
+                    "endereco": ong.endereco,
+                    "cnpj_cpf": ong.cnpj_cpf,
+                    "aprovado": ong.aprovado,
+                    "role": "ong_protetor"
+                }), 200
+    
+    return jsonify({"message": "Perfil não encontrado ou acesso negado."}), 404
+
+# Adicione esta rota para atualizar animais
+@app.route('/api/animals/<int:animal_id>', methods=['PUT'])
+@jwt_required()
+def update_animal(animal_id):
+    current_user_identity_str = get_jwt_identity()
+    current_user_identity = json.loads(current_user_identity_str)
+    user_id = current_user_identity.get('id')
+    user_role = current_user_identity.get('role')
+
+    animal = Animal.query.get(animal_id)
+    if not animal:
+        return jsonify({"message": "Animal não encontrado."}), 404
+
+    if user_role != 'ong_protetor' or animal.ong_protetor_id != user_id:
+        return jsonify({"message": "Você não tem permissão para editar este animal."}), 403
+
+    # Remove o código de upload de arquivo daqui se você não permite a atualização de fotos via PUT
+    # Se permitir, a lógica deve ser similar à de create_animal, com tratamento para arquivo novo/existente.
+    # Por simplicidade, assumindo que a foto_principal_url não é atualizada aqui.
+
+    # Pega dados de JSON, pois PUTs geralmente enviam JSON, não FormData, a menos que especificado
+    data = request.get_json() 
+
+    animal.nome = data.get('nome', animal.nome)
+    animal.especie = data.get('especie', animal.especie)
+    animal.raca = data.get('raca', animal.raca)
+    animal.porte = data.get('porte', animal.porte)
+    animal.idade_texto = data.get('idade_texto', animal.idade_texto)
+    animal.sexo = data.get('sexo', animal.sexo)
+    animal.cores = data.get('cores', animal.cores)
+    animal.saude = data.get('saude', animal.saude)
+    animal.descricao = data.get('descricao', animal.descricao)
+    animal.status_adocao = data.get('status_adocao', animal.status_adocao)
+
+    # Lida com personalidades
+    personalidades_nomes = data.get('personalidades', None)
+    if personalidades_nomes is not None:
+        # Remove todas as associações existentes
+        AnimalPersonalidade.query.filter_by(animal_id=animal.id).delete()
+        # Adiciona as novas associações
+        for p_nome in personalidades_nomes:
+            personalidade_db = Personalidade.query.filter_by(nome=p_nome).first()
+            if personalidade_db:
+                animal_personalidade = AnimalPersonalidade(animal=animal, personalidade=personalidade_db)
+                db.session.add(animal_personalidade)
+            else:
+                print(f"AVISO: Personalidade '{p_nome}' não encontrada. Ignorando.")
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Animal atualizado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao atualizar animal: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"message": f"Erro ao atualizar animal: {str(e)}"}), 500
+
+# Adicione esta rota para deletar animais
+@app.route('/api/animals/<int:animal_id>', methods=['DELETE'])
+@jwt_required()
+def delete_animal(animal_id):
+    current_user_identity_str = get_jwt_identity()
+    current_user_identity = json.loads(current_user_identity_str)
+    user_id = current_user_identity.get('id')
+    user_role = current_user_identity.get('role')
+
+    animal = Animal.query.get(animal_id)
+    if not animal:
+        return jsonify({"message": "Animal não encontrado."}), 404
+
+    if user_role != 'ong_protetor' or animal.ong_protetor_id != user_id:
+        return jsonify({"message": "Você não tem permissão para deletar este animal."}), 403
+
+    try:
+        # Opcional: Remover a foto associada ao animal antes de deletar o registro
+        if animal.foto_principal_url:
+            # Extrai o nome do arquivo da URL (ex: 'http://localhost:5000/uploads/foto.jpg' -> 'foto.jpg')
+            filename = os.path.basename(animal.foto_principal_url)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"Foto {filename} removida do servidor.")
+
+        # Deleta as associações AnimalPersonalidade primeiro (devido ao CASCADE ondelete)
+        AnimalPersonalidade.query.filter_by(animal_id=animal.id).delete()
+        db.session.delete(animal)
+        db.session.commit()
+        return jsonify({"message": "Animal deletado com sucesso!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao deletar animal: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"message": f"Erro ao deletar animal: {str(e)}"}), 500
+
 if __name__ == '__main__':
-    # Garante que o diretório de uploads exista ao iniciar o aplicativo (ADICIONADO)
+    # Cria a pasta de uploads se não existir ao iniciar o app
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-        
+    
     with app.app_context():
-        db.create_all() # Garante que as tabelas sejam criadas se não existirem
+        db.create_all() # Cria as tabelas se elas não existirem
+        
         # Opcional: Adicionar personalidades padrão se a tabela estiver vazia
         if not Personalidade.query.first():
+            print("Adicionando personalidades padrão...")
             personalidades_padrao = [
-                "Brincalhão", "Calmo", "Independente", "Sociável",
-                "Curioso", "Carente", "Protetor", "Tímido",
-                "Dócil", "Energético", "Inteligente", "Leal",
-                "Paciente", "Obediente", "Corajoso", "Cres",
-                "Territorial", "Amigável", "Adaptável"
+                "Brincalhão", "Calmo", "Tímido", "Independente", "Sociável",
+                "Curioso", "Energético", "Dócil", "Protetor", "Carinhoso",
+                "Inteligente", "Destruidor", "Medroso", "Ativo", "Agressivo",
+                "Carente", "Teimoso", "Tranquilo", "Adaptável", "Observador"
             ]
             for p_nome in personalidades_padrao:
-                db.session.add(Personalidade(nome=p_nome))
+                if not Personalidade.query.filter_by(nome=p_nome).first():
+                    db.session.add(Personalidade(nome=p_nome))
             db.session.commit()
-            print("Personalidades padrão adicionadas ao banco de dados.")
-    app.run(debug=True) # Modo de depuração para desenvolvimento
+            print("Personalidades padrão adicionadas.")
+
+    app.run(debug=True, port=5000)

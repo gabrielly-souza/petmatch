@@ -1,0 +1,190 @@
+/* src/components/HomePage.module.css */
+
+.homePageContainer {
+    max-width: 1500px; /* Largura máxima para o conteúdo */
+    margin: 0 auto; /* Centraliza o container */
+    padding: 0; /* Removido padding geral, as seções terão seu próprio padding */
+    text-align: center; /* Centraliza o texto por padrão */
+    background-color: #f9fafb; /* Fundo claro para a página */
+}
+
+/* --- Seção Hero (Landing Page Style com Imagem de Fundo) --- */
+.heroSection {
+    position: relative; /* Necessário para posicionar o texto absolutamente */
+    min-height: 600px; /* Altura mínima para a imagem de fundo ser visível */
+    /* CAMINHO DA IMAGEM: DEVE COMEÇAR COM '/' PARA REFERENCIAR A PASTA PUBLIC */
+    background-image: url('../img/img.jpg'); /* <<-- CAMINHO ABSOLUTO PARA A IMAGEM NA PASTA PUBLIC */
+    background-size: cover; /* Cobre toda a área */
+    background-position: center center; /* Posiciona a imagem para que o texto fique à direita */
+    background-repeat: no-repeat;
+    display: flex; /* Usar flexbox para alinhar o conteúdo */
+    align-items: center; /* Centraliza o conteúdo verticalmente */
+    justify-content: flex-end; /* Alinha o conteúdo à direita */
+    padding: 4rem 2rem; /* Padding generoso */
+    color: white; /* Cor do texto padrão para contrastar com a imagem */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra no texto para melhor legibilidade */
+    border-bottom: 1px solid #e5e7eb; /* Linha divisória sutil */
+}
+
+/* Camada de overlay para melhorar o contraste do texto sobre a imagem */
+.heroSection::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to left, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 50%); /* Gradiente escuro da direita para a esquerda */
+    z-index: 1; /* Garante que o overlay esteja abaixo do texto mas acima da imagem */
+}
+
+.heroContent {
+    position: relative; /* Garante que o conteúdo fique acima do overlay */
+    z-index: 2; /* Acima do overlay */
+    max-width: 500px; /* Limita a largura do texto para melhor leitura */
+    text-align: right; /* Alinha o texto à direita */
+    padding-left: 2rem; /* Espaço à esquerda para não colar na borda */
+    padding-right: 2rem; /* Espaço à direita */
+    margin-left: auto; /* Empurra o conteúdo para a direita */
+}
+
+.heroTitle {
+    font-size: 3rem; /* Título maior e mais impactante */
+    font-weight: 800; /* Extra bold */
+    color: #ffffff; /* Cor branca para o título */
+    margin-bottom: 1rem; /* Espaço abaixo do título */
+    line-height: 1.1; /* Melhor espaçamento da linha */
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.7); /* Sombra mais forte no texto */
+}
+
+.heroSubtitle {
+    font-size: 2rem; /* Subtítulo claro e proeminente */
+    color: #f0f0f0; /* Um branco levemente mais suave */
+    margin-bottom: 2rem; /* Espaço abaixo do subtítulo */
+    line-height: 1.4;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.6); /* Sombra no texto */
+}
+
+/* --- Seção de introdução ao chatbot (Estilização APRIMORADA) --- */
+.introSection {
+    max-width: 900px; /* Largura para o texto da introdução */
+    margin: 3rem auto; /* Centraliza e adiciona margem */
+    padding: 2.5rem 2rem; /* Aumentado o padding para mais "ar" */
+    background-color: #e0f2f7; /* Um azul muito claro da paleta para um fundo sutil */
+    border-radius: 15px; /* Cantos arredondados */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1); /* Sombra um pouco mais pronunciada */
+    text-align: center; /* Centraliza o texto */
+    border: 1px solid #a0d9e7; /* Borda sutil para definir o bloco */
+}
+
+.introTitle {
+    font-size: 2.2rem; /* Título da introdução um pouco maior */
+    font-weight: 700;
+    color: #006080; /* Accent Blue hover para o título, mais escuro e impactante */
+    margin-bottom: 1.2rem; /* Espaço abaixo do título */
+    line-height: 1.3;
+}
+
+.introText {
+    font-size: 1.15rem; /* Texto da introdução ligeiramente maior */
+    color: #1f2937; /* Text Dark */
+    line-height: 1.7; /* Melhor espaçamento entre linhas para leitura */
+    max-width: 750px; /* Limita a largura do parágrafo para melhor legibilidade */
+    margin: 0 auto; /* Centraliza o parágrafo */
+}
+
+.introText strong {
+    color: #00749B; /* Accent Blue para destaque no texto */
+}
+/* --- Fim da nova seção de introdução --- */
+
+
+.featuredPetsSection {
+    padding: 3rem 1rem; /* Padding para a seção de animais */
+    background-color: #f9fafb; /* Fundo claro */
+}
+
+.featuredPetsTitle {
+    font-size: 2.5rem; /* Título da seção de pets */
+    font-weight: 700; /* Bold */
+    color: #1f2937; /* Text Dark da paleta */
+    margin-bottom: 2.5rem; /* Espaço abaixo do título */
+}
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .heroSection {
+        background-position: center center; /* Centraliza a imagem em telas menores */
+        justify-content: center; /* Centraliza o conteúdo horizontalmente */
+    }
+    .heroSection::before {
+        background: rgba(0,0,0,0.5); /* Overlay mais uniforme em telas menores */
+    }
+    .heroContent {
+        text-align: center; /* Centraliza o texto */
+        max-width: 80%; /* Mais largura para o texto */
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    .heroTitle {
+        font-size: 3rem;
+    }
+    .heroSubtitle {
+        font-size: 1.4rem;
+    }
+    .introSection {
+        padding: 2rem 1.5rem;
+        margin: 2.5rem auto;
+    }
+    .introTitle {
+        font-size: 1.8rem;
+    }
+    .introText {
+        font-size: 1rem;
+    }
+    .featuredPetsTitle {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .heroSection {
+        min-height: 450px; /* Altura menor em tablets */
+    }
+    .heroTitle {
+        font-size: 2.5rem;
+    }
+    .heroSubtitle {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .heroSection {
+        min-height: 400px; /* Altura menor em celulares */
+        padding: 2rem 1rem;
+    }
+    .heroTitle {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    .heroSubtitle {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .introSection {
+        padding: 1.5rem;
+        margin: 2rem auto;
+        border-radius: 8px; /* Menos arredondado em telas pequenas */
+    }
+    .introTitle {
+        font-size: 1.5rem;
+    }
+    .introText {
+        font-size: 0.95rem;
+    }
+    .featuredPetsTitle {
+        font-size: 1.8rem;
+        margin-bottom: 2rem;
+    }
+}
