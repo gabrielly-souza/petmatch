@@ -1,0 +1,84 @@
+/* src/components/PetList.module.css */
+
+.petListContainer {
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+  gap: 25px; 
+  padding: 20px; 
+  max-width: 1200px; 
+  margin: 20px auto; 
+}
+
+.petCard {
+  background-color: white; 
+  border: 1px solid #e0e0e0; 
+  border-radius: 10px; 
+  /* padding: 15px; <--- REMOVA ESTE PADDING DO CARD! */
+  padding-bottom: 15px; /* Adiciona padding apenas na parte inferior do card */
+  box-shadow: var(--shadow-light); 
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; 
+  height: auto; 
+  min-height: 360px; /* <--- Altura mínima um pouco menor */
+}
+
+.petCard:hover {
+  transform: translateY(-5px); 
+  box-shadow: var(--shadow-medium); 
+}
+
+.petCardImage {
+  width: 100%;
+  height: 200px; 
+  object-fit: cover; 
+  border-radius: 8px; 
+  margin-bottom: 10px; 
+}
+
+.petInfo {
+    flex-grow: 1; 
+    padding: 0 15px 10px 15px; /* <--- Adiciona padding lateral para o texto, e inferior */
+}
+
+.petCard h3 {
+  font-family: 'Poppins', sans-serif; 
+  color: var(--primary-color); 
+  font-size: 1.3em; 
+  margin-top: 0; 
+  margin-bottom: 5px; 
+}
+
+.basicDetail {
+  font-family: 'Roboto', sans-serif; 
+  font-size: 0.9em; 
+  color: var(--text-dark); 
+  line-height: 1.3; 
+  margin-bottom: 5px; 
+}
+
+.detailsButton {
+  display: block; 
+  /* Ajuste a largura para compensar o padding lateral do card e centralizar */
+  width: calc(100% - 30px); /* 100% menos 15px de padding de cada lado */
+  margin-left: 15px; /* Empurra o botão para a direita para centralizar */
+  margin-right: 15px; /* Garante que não haja margem extra à direita */
+  
+  padding: 10px 15px;
+  background-color: var(--primary-color);
+  color: white;
+  text-align: center;
+  border-radius: 5px; 
+  text-decoration: none; 
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  margin-top: auto; 
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  box-sizing: border-box; /* <--- MUITO IMPORTANTE: Inclui padding na largura total */
+}
+
+.detailsButton:hover {
+  background-color: #5aa1aa; 
+  transform: translateY(-1px); 
+}

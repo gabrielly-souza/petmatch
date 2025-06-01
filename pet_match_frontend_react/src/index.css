@@ -1,0 +1,28 @@
+/* src/index.css */
+
+body {
+  font-family: 'Roboto', sans-serif; /* Fonte padrão para o corpo */
+  color: var(--text-dark);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif; /* Fonte para títulos */
+  color: var(--text-dark);
+}
+
+/* src/index.css ou src/styles/variables.css */
+
+:root {
+  /* Cores */
+  --primary-color: #6BB0BA; /* Verde-água/Azul */
+  --secondary-color: #FFB347; /* Laranja Suave */
+  --background-light: #F8F8F8; /* Fundo claro */
+  --text-dark: #333333; /* Texto principal */
+  --text-medium: #707070; /* Texto secundário */
+  --success-color: #28a745; /* Verde para sucesso */
+  --error-color: #dc3545; /* Vermelho para erro */
+
+  /* Sombras */
+  --shadow-light: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0px 6px 12px rgba(0, 0, 0, 0.15);
+}

@@ -1,0 +1,88 @@
+/* src/components/PetDetails.css */
+
+.animal-detail-container {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 25px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-family: 'Arial', sans-serif;
+    color: #333;
+    text-align: center; /* Centraliza o conteúdo principal */
+}
+
+.animal-detail-container h2 {
+    color: #4CAF50; /* Um verde amigável */
+    font-size: 2.2em;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.animal-detail-container img {
+    display: block; /* Garante que a imagem se centre com margin: auto */
+    margin: 0 auto 20px auto;
+    border: 2px solid #ddd;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.animal-detail-container p {
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    text-align: left; /* Alinha o texto das informações à esquerda */
+    padding-left: 15%; /* Adiciona um pequeno recuo para melhor leitura */
+    padding-right: 15%;
+}
+
+.animal-detail-container p strong {
+    color: #555;
+    min-width: 120px; /* Garante que os rótulos "strong" tenham um tamanho mínimo */
+    display: inline-block; /* Permite aplicar min-width */
+}
+
+/* Estilos para o caso de carregamento ou erro */
+.animal-detail-container.loading,
+.animal-detail-container.error {
+    text-align: center;
+    font-size: 1.3em;
+    padding: 50px;
+}
+
+.animal-detail-container.error {
+    color: #D32F2F; /* Vermelho para mensagens de erro */
+    font-weight: bold;
+}
+
+/* Opcional: Estilo para responsividade básica */
+@media (max-width: 768px) {
+    .animal-detail-container {
+        margin: 15px;
+        padding: 15px;
+    }
+    .animal-detail-container p {
+        padding-left: 5%;
+        padding-right: 5%;
+    }
+    .animal-detail-container h2 {
+        font-size: 1.8em;
+    }
+}
+
+.edit-button {
+    display: inline-block; /* Ou 'block' se quiser que ocupe a linha toda */
+    margin-top: 25px;
+    padding: 12px 25px;
+    background-color: #007bff; /* Um azul para o botão de editar */
+    color: white;
+    text-decoration: none; /* Remove sublinhado do link */
+    border-radius: 5px;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.edit-button:hover {
+    background-color: #0056b3; /* Azul mais escuro no hover */
+}
