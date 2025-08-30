@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { addAnimal } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import styles from './AddPetForm.module.css';
+import styles from './AddPetForm.module.css'; // Certifique-se de que o caminho está correto
 
 function AddPetForm() {
     const { getToken } = useAuth();
@@ -20,13 +20,11 @@ function AddPetForm() {
         saude: '',
         personalidades: [],
         descricao: '',
-        // Remova foto_principal_url daqui, pois será um arquivo
     });
-    const [fotoPrincipal, setFotoPrincipal] = useState(null); // <--- NOVO ESTADO PARA A FOTO
+    const [fotoPrincipal, setFotoPrincipal] = useState(null);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
 
-    // ... (opções para dropdowns/checkboxes permanecem as mesmas) ...
     const especies = ['Cachorro', 'Gato', 'Outro'];
     const portes = ['Pequeno', 'Médio', 'Grande'];
     const sexos = ['Macho', 'Fêmea'];
@@ -53,9 +51,8 @@ function AddPetForm() {
         }
     };
 
-    // --- NOVA FUNÇÃO PARA LIDAR COM A SELEÇÃO DE ARQUIVO ---
     const handleFileChange = (e) => {
-        setFotoPrincipal(e.target.files[0]); // Pega o primeiro arquivo selecionado
+        setFotoPrincipal(e.target.files[0]);
     };
 
     const handleSubmit = async (e) => {
@@ -71,38 +68,33 @@ function AddPetForm() {
                 return;
             }
 
-            // --- CRIAÇÃO DO FormData PARA ENVIAR ARQUIVOS ---
             const formPayload = new FormData();
             for (const key in formData) {
                 if (key === 'personalidades') {
-                    // Adicione cada personalidade como um item separado no FormData
                     formData[key].forEach(p => formPayload.append(key, p));
                 } else {
                     formPayload.append(key, formData[key]);
                 }
             }
             if (fotoPrincipal) {
-                formPayload.append('foto_principal', fotoPrincipal); // <--- ANEXA A FOTO AQUI
+                formPayload.append('foto_principal', fotoPrincipal);
             } else {
                 setError("Por favor, selecione uma foto principal para o animal.");
                 return;
             }
 
-            // Envie os dados do formulário, incluindo o arquivo
-            const response = await addAnimal(formPayload, token); // <--- ENVIANDO formPayload
+            const response = await addAnimal(formPayload, token);
 
             setSuccessMessage("Animal cadastrado com sucesso!");
             console.log("Animal cadastrado:", response);
-            // Limpa o formulário
             setFormData({
                 nome: '', especie: '', raca: '', porte: '', idade_texto: '',
                 sexo: '', cores: '', saude: '', personalidades: [], descricao: '',
             });
-            setFotoPrincipal(null); // Limpa o estado da foto
-            // Opcional: Redirecionar após um pequeno delay para a mensagem ser lida
+            setFotoPrincipal(null);
             setTimeout(() => {
                 navigate('/my-animals');
-            }, 1500); // Redireciona após 1.5 segundos
+            }, 1500);
 
         } catch (err) {
             console.error("Erro ao cadastrar animal:", err);
@@ -116,105 +108,124 @@ function AddPetForm() {
             {error && <p className={styles.errorMessage}>{error}</p>}
             {successMessage && <p style={{ color: 'green', textAlign: 'center' }}>{successMessage}</p>}
 
-            <form onSubmit={handleSubmit}>
-                {/* ... (Seus campos de formulário existentes: nome, especie, raca, porte, idade_texto, sexo, cores, saude, personalidades, descricao) ... */}
+            <form onSubmit={handleSubmit} className={styles.petForm}> {/* Adicionada classe 'petForm' aqui */}
+                {/* GRUPO DE CAMPOS EM DUAS COLUNAS */}
+                <div className={styles.formColumns}>
+                    <div className={styles.column}>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="nome">Nome:</label>
+                            <input
+                                type="text"
+                                id="nome"
+                                name="nome"
+                                value={formData.nome}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="nome">Nome:</label>
-                    <input
-                        type="text"
-                        id="nome"
-                        name="nome"
-                        value={formData.nome}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="especie">Espécie:</label>
+                            <select
+                                id="especie"
+                                name="especie"
+                                value={formData.especie}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione a espécie</option>
+                                {especies.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="especie">Espécie:</label>
-                    <select
-                        id="especie"
-                        name="especie"
-                        value={formData.especie}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Selecione a espécie</option>
-                        {especies.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                    </select>
-                </div>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="raca">Raça:</label>
+                            <input
+                                type="text"
+                                id="raca"
+                                name="raca"
+                                value={formData.raca}
+                                onChange={handleChange}
+                                placeholder="Ex: Golden Retriever, SRD"
+                            />
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="raca">Raça:</label>
-                    <input
-                        type="text"
-                        id="raca"
-                        name="raca"
-                        value={formData.raca}
-                        onChange={handleChange}
-                        placeholder="Ex: Golden Retriever, SRD"
-                    />
-                </div>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="idade_texto">Idade (ex: 2 anos, filhote):</label>
+                            <input
+                                type="text"
+                                id="idade_texto"
+                                name="idade_texto"
+                                value={formData.idade_texto}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                    </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="porte">Porte:</label>
-                    <select
-                        id="porte"
-                        name="porte"
-                        value={formData.porte}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Selecione o porte</option>
-                        {portes.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                    </select>
-                </div>
+                    <div className={styles.column}>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="porte">Porte:</label>
+                            <select
+                                id="porte"
+                                name="porte"
+                                value={formData.porte}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione o porte</option>
+                                {portes.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="idade_texto">Idade (ex: 2 anos, filhote):</label>
-                    <input
-                        type="text"
-                        id="idade_texto"
-                        name="idade_texto"
-                        value={formData.idade_texto}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="sexo">Sexo:</label>
+                            <select
+                                id="sexo"
+                                name="sexo"
+                                value={formData.sexo}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione o sexo</option>
+                                {sexos.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="sexo">Sexo:</label>
-                    <select
-                        id="sexo"
-                        name="sexo"
-                        value={formData.sexo}
-                        onChange={handleChange}
-                        required
-                    >
-                        <option value="">Selecione o sexo</option>
-                        {sexos.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                    </select>
-                </div>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="cores">Cores:</label>
+                            <input
+                                type="text"
+                                id="cores"
+                                name="cores"
+                                value={formData.cores}
+                                onChange={handleChange}
+                                placeholder="Ex: Branco e preto, Tricolor"
+                            />
+                        </div>
 
-                <div className={styles.formGroup}>
-                    <label htmlFor="cores">Cores:</label>
-                    <input
-                        type="text"
-                        id="cores"
-                        name="cores"
-                        value={formData.cores}
-                        onChange={handleChange}
-                        placeholder="Ex: Branco e preto, Tricolor"
-                    />
-                </div>
+                         {/* CAMPO PARA UPLOAD DE FOTO - MANTIDO NA SEGUNDA COLUNA */}
+                        <div className={styles.formGroup}>
+                            <label htmlFor="foto_principal">Foto:</label>
+                            <input
+                                type="file"
+                                id="foto_principal"
+                                name="foto_principal"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                required
+                            />
+                        </div>
+                    </div>
+                </div> {/* FIM DO formColumns */}
 
+                {/* CAMPOS DE LARGURA TOTAL (TEXTAREAS E CHECKBOXES) */}
                 <div className={styles.formGroup}>
                     <label htmlFor="saude">Informações de Saúde:</label>
                     <textarea
@@ -254,19 +265,6 @@ function AddPetForm() {
                         required
                         placeholder="Conte um pouco sobre o animal..."
                     ></textarea>
-                </div>
-
-                {/* --- CAMPO PARA UPLOAD DE FOTO --- */}
-                <div className={styles.formGroup}>
-                    <label htmlFor="foto_principal">Foto Principal do Animal:</label>
-                    <input
-                        type="file" // <--- TIPO FILE
-                        id="foto_principal"
-                        name="foto_principal" // Nome que seu backend vai esperar
-                        accept="image/*" // Aceita apenas arquivos de imagem
-                        onChange={handleFileChange} // <--- NOVA FUNÇÃO PARA MUDANÇA DE ARQUIVO
-                        required // Torna a foto obrigatória
-                    />
                 </div>
 
                 <button type="submit" className={styles.submitButton}>

@@ -2,17 +2,15 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// Importando FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaw } from '@fortawesome/free-solid-svg-icons'; // Ícone de pata
+import { faPaw } from '@fortawesome/free-solid-svg-icons';
 
-import styles from './Navbar.module.css'; // <<-- IMPORTANDO O CSS MODULE
+import styles from './Navbar.module.css';
 
 const Navbar = () => {
     const { isAuthenticated, logout, userRole } = useAuth();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Estado para controlar o menu mobile
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Função para alternar o estado do menu mobile
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
     };
@@ -20,24 +18,21 @@ const Navbar = () => {
     return (
         <nav className={styles.navbar}>
             <div className={styles.navbarContainer}>
-                {/* Logo/Nome do Site com Ícone de Pata */}
-                <Link to="/" className={styles.logoLink}> {/* Renomeado para logoLink para melhor semântica */}
-                    <div className={styles.logoGroup}> {/* Novo container para alinhar texto e ícone */}
+                <Link to="/" className={styles.logoLink}>
+                    <div className={styles.logoGroup}>
                         <span className={styles.logo}>
                             Pet Match
                         </span>
-                        <FontAwesomeIcon icon={faPaw} className={styles.pawIcon} /> {/* Ícone de pata */}
+                        <FontAwesomeIcon icon={faPaw} className={styles.pawIcon} />
                     </div>
                 </Link>
 
-                {/* Botão de Menu para Mobile */}
                 <div className={styles.mobileMenuButtonContainer}>
                     <button
                         onClick={toggleMobileMenu}
                         className={styles.mobileMenuButton}
                         aria-label="Toggle mobile menu"
                     >
-                        {/* Ícone de hambúrguer ou X */}
                         {isMobileMenuOpen ? (
                             <svg className={styles.menuIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -52,13 +47,12 @@ const Navbar = () => {
 
                 {/* Links de Navegação (Desktop) */}
                 <div className={styles.navLinksDesktop}>
-                   
+
                     {!isAuthenticated && (
                         <>
                             <Link to="/login" className={styles.navLink}>
                                 Login
                             </Link>
-                            {/* Botão Cadastre-se - Cor Principal: Vermelho */}
                             <Link to="/register" className={styles.registerButton}>
                                 Cadastre-se
                             </Link>
@@ -70,17 +64,28 @@ const Navbar = () => {
                             <Link to="/profile" className={styles.navLink}>
                                 Meu Perfil
                             </Link>
-                            {userRole === 'ong_protetor' && (
-                                <>
-                                    <Link to="/add-pet" className={styles.navLink}>
-                                        Cadastrar Pet
-                                    </Link>
-                                    <Link to="/my-animals" className={styles.navLink}>
-                                        Meus Animais
-                                    </Link>
-                                </>
+
+                            {/* Ajuste para 'Cadastrar Pet': Admin e ONG/Protetor */}
+                            {(userRole === 'ong_protetor' || userRole === 'admin') && (
+                                <Link to="/add-pet" className={styles.navLink}>
+                                    Cadastrar Pet
+                                </Link>
                             )}
-                            {/* Botão Sair - Cor de Destaque/Ação: Azul */}
+
+                            {/* Ajuste para 'Meus Animais': APENAS ONG/Protetor */}
+                            {userRole === 'ong_protetor' && (
+                                <Link to="/my-animals" className={styles.navLink}>
+                                    Meus Animais
+                                </Link>
+                            )}
+
+                            {/* Link para o Painel Admin: Apenas para Administradores */}
+                            {userRole === 'admin' && (
+                                <Link to="/admin" className={styles.navLink}>
+                                    Painel Admin
+                                </Link>
+                            )}
+
                             <button
                                 onClick={logout}
                                 className={styles.logoutButton}
@@ -89,10 +94,10 @@ const Navbar = () => {
                             </button>
                         </>
                     )}
-                </div>
+                </div> {/* FIM DO navLinksDesktop - AQUI ESTAVA O ERRO DE > */}
             </div>
 
-            {/* Menu Mobile (Visível apenas quando isMobileMenuOpen for true e em telas pequenas) */}
+            {/* Menu Mobile */}
             {isMobileMenuOpen && (
                 <div className={`${styles.mobileMenu} ${styles.animateSlideDown}`}>
                     <div className={styles.mobileMenuLinks}>
@@ -114,16 +119,26 @@ const Navbar = () => {
                                 <Link to="/profile" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
                                     Meu Perfil
                                 </Link>
-                                {userRole === 'ong_protetor' && (
-                                    <>
-                                        <Link to="/add-pet" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
-                                            Cadastrar Pet
-                                        </Link>
-                                        <Link to="/my-animals" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
-                                            Meus Animais
-                                        </Link>
-                                    </>
+                                {/* Ajuste para 'Cadastrar Pet' (Mobile): Admin e ONG/Protetor */}
+                                {(userRole === 'ong_protetor' || userRole === 'admin') && (
+                                    <Link to="/add-pet" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
+                                        Cadastrar Pet
+                                    </Link>
                                 )}
+                                {/* Ajuste para 'Meus Animais' (Mobile): APENAS ONG/Protetor */}
+                                {userRole === 'ong_protetor' && (
+                                    <Link to="/my-animals" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
+                                        Meus Animais
+                                    </Link>
+                                )}
+
+                                {/* Link para o Painel Admin (Mobile): Apenas para Administradores */}
+                                {userRole === 'admin' && (
+                                    <Link to="/admin" className={styles.mobileNavLink} onClick={toggleMobileMenu}>
+                                        Painel Admin
+                                    </Link>
+                                )}
+
                                 <button
                                     onClick={() => { logout(); toggleMobileMenu(); }}
                                     className={styles.mobileLogoutButton}

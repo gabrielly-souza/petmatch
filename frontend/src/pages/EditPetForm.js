@@ -2,18 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAnimalById, updateAnimal } from '../api'; // updateAnimal precisará ser ajustado na API para aceitar FormData
+import { getAnimalById, updateAnimal } from '../api'; // Importe getAnimalById e updateAnimal
 import { useAuth } from '../context/AuthContext';
 
-// Importação do CSS Modules.
-// Se seu arquivo CSS está em src/components/, este caminho está correto.
-// Se está em src/pages/, mude para './EditPetForm.module.css'
 import styles from '../components/EditPetForm.module.css';
 
 const EditPetForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { userToken, isOngProtetor } = useAuth();
+    const { userToken, isOngProtetor } = useAuth(); // Obtenha userToken e isOngProtetor do contexto
 
     const [formData, setFormData] = useState({
         nome: '',
@@ -28,14 +25,20 @@ const EditPetForm = () => {
         status_adocao: 'Disponível',
         personalidades: [],
     });
-    const [currentImageUrl, setCurrentImageUrl] = useState(''); // Estado para a URL da imagem atual
-    const [selectedFile, setSelectedFile] = useState(null); // Estado para o novo arquivo selecionado
+    const [currentImageUrl, setCurrentImageUrl] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
 
     const [personalitiesOptions] = useState([
         "Brincalhão", "Calmo", "Energia Alta", "Social", "Dócil",
         "Independente", "Curioso", "Preguiçoso", "Companheiro",
         "Paciente", "Extrovertido", "Medroso", "Territorial"
     ]);
+
+    const especies = ['Cachorro', 'Gato', 'Outro'];
+    const portes = ['Pequeno', 'Médio', 'Grande'];
+    const sexos = ['Macho', 'Fêmea'];
+    const statusAdocaoOptions = ['Disponível', 'Adotado', 'Em Processo'];
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
@@ -47,9 +50,15 @@ const EditPetForm = () => {
                 setLoading(false);
                 return;
             }
+            if (!userToken) { // Adiciona verificação se o token ainda não está disponível
+                setError("Token de autenticação não encontrado. Faça login novamente.");
+                setLoading(false);
+                return;
+            }
 
             try {
-                const animalData = await getAnimalById(id);
+                // AQUI ESTÁ A MUDANÇA CRUCIAL: Passando o userToken
+                const animalData = await getAnimalById(id, userToken);
                 setFormData({
                     nome: animalData.nome || '',
                     especie: animalData.especie || '',
@@ -63,17 +72,18 @@ const EditPetForm = () => {
                     status_adocao: animalData.status_adocao || 'Disponível',
                     personalidades: animalData.personalidades || [],
                 });
-                setCurrentImageUrl(animalData.foto_principal_url || ''); // Define a URL da imagem atual
+                setCurrentImageUrl(animalData.foto_principal_url || '');
             } catch (err) {
                 console.error("Erro ao carregar dados do animal:", err);
-                setError("Erro ao carregar dados do animal para edição.");
+                // Erro detalhado para facilitar depuração
+                setError(`Erro ao carregar dados do animal para edição. Detalhes: ${err.response?.data?.message || err.message}`);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchAnimalData();
-    }, [id, userToken, isOngProtetor]);
+    }, [id, userToken, isOngProtetor]); // userToken na lista de dependências para re-executar se mudar
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -81,7 +91,7 @@ const EditPetForm = () => {
     };
 
     const handleFileChange = (e) => {
-        setSelectedFile(e.target.files[0]); // Pega o primeiro arquivo selecionado
+        setSelectedFile(e.target.files[0]);
     };
 
     const handlePersonalityChange = (e) => {
@@ -99,31 +109,27 @@ const EditPetForm = () => {
         setSuccessMessage(null);
         setError(null);
 
-        const dataToSend = new FormData(); // Usaremos FormData para enviar arquivos
+        if (!userToken) {
+            setError("Token de autenticação ausente. Faça login novamente.");
+            return;
+        }
 
-        // Adiciona todos os campos do formData
+        const dataToSend = new FormData();
+
         for (const key in formData) {
             if (key === 'personalidades') {
-                // Personalidades precisam ser stringificadas para FormData
                 dataToSend.append(key, JSON.stringify(formData[key]));
             } else {
                 dataToSend.append(key, formData[key]);
             }
         }
 
-        // Adiciona a nova imagem, se selecionada
         if (selectedFile) {
-            dataToSend.append('foto_principal', selectedFile); // 'foto_principal' é o nome do campo que seu backend espera
-        } else {
-            // Se nenhum novo arquivo for selecionado, podemos opcionalmente enviar a URL existente
-            // de volta para o backend, se necessário.
-            // Isso depende de como seu backend lida com atualizações de imagem (se ele apaga se não receber).
-            // Geralmente, se não enviou um arquivo, o backend assume que a imagem anterior deve ser mantida.
-            // dataToSend.append('foto_principal_url', currentImageUrl); // Descomente se seu backend precisa disso
+            dataToSend.append('foto_principal', selectedFile);
         }
 
         try {
-            await updateAnimal(id, dataToSend, userToken); // updateAnimal precisa aceitar FormData
+            await updateAnimal(id, dataToSend, userToken);
             setSuccessMessage("Animal atualizado com sucesso!");
             setTimeout(() => navigate('/my-animals'), 2000);
         } catch (err) {
@@ -132,108 +138,196 @@ const EditPetForm = () => {
         }
     };
 
-    if (loading) return <p>Carregando dados do animal para edição...</p>;
-    if (error) return <p className={styles.errorMessage}>{error}</p>;
+    if (loading) return <p className={styles.loadingMessage}>Carregando dados do animal para edição...</p>;
+    // Se há um erro e não está carregando, exibe a mensagem de erro.
+    if (error && !loading) return <p className={styles.errorMessage}>{error}</p>;
 
     return (
         <div className={styles.editPetFormContainer}>
             <h1>Editar Animal: {formData.nome}</h1>
             {successMessage && <p className={styles.successMessage}>{successMessage}</p>}
-            {error && <p className={styles.errorMessage}>{error}</p>}
-            <form onSubmit={handleSubmit}>
-                <label>
-                    Nome:
-                    <input type="text" name="nome" value={formData.nome} onChange={handleChange} required />
-                </label>
-                <label>
-                    Espécie:
-                    <input type="text" name="especie" value={formData.especie} onChange={handleChange} required />
-                </label>
-                <label>
-                    Raça:
-                    <input type="text" name="raca" value={formData.raca} onChange={handleChange} />
-                </label>
-                <label>
-                    Porte:
-                    <input type="text" name="porte" value={formData.porte} onChange={handleChange} required />
-                </label>
-                <label>
-                    Idade (ex: 2 anos, 3 meses):
-                    <input type="text" name="idade_texto" value={formData.idade_texto} onChange={handleChange} required />
-                </label>
-                <label>
-                    Sexo:
-                    <select name="sexo" value={formData.sexo} onChange={handleChange} required>
-                        <option value="">Selecione</option>
-                        <option value="Macho">Macho</option>
-                        <option value="Fêmea">Fêmea</option>
-                    </select>
-                </label>
-                <label>
-                    Cores:
-                    <input type="text" name="cores" value={formData.cores} onChange={handleChange} />
-                </label>
-                <label>
-                    Saúde:
-                    <input type="text" name="saude" value={formData.saude} onChange={handleChange} />
-                </label>
-                <label>
-                    Descrição:
-                    <textarea name="descricao" value={formData.descricao} onChange={handleChange} required></textarea>
-                </label>
 
-                {/* SEÇÃO DE UPLOAD DE IMAGEM (CORRIGIDA) */}
-                <div className={styles.imageUploadSection}>
-                    {/* Este label é APENAS para o texto "Foto Principal Atual:" e a imagem */}
-                    <label>
-                        Foto Principal Atual:
-                        {currentImageUrl ? (
-                            <img src={currentImageUrl} alt="Foto atual do pet" className={styles.currentPetImage} />
-                        ) : (
-                            <div className={styles.noImagePreview}>Nenhuma imagem atual</div>
-                        )}
-                    </label>
-
-                    {/* ESTE É O LABEL QUE SERÁ SEU BOTÃO ESTILIZADO E ATIVARÁ O INPUT DE ARQUIVO */}
-                    {/* ATENÇÃO: `htmlFor` e `id` devem ser iguais. `className` aplica o estilo de botão. */}
-                    <label htmlFor="file-upload-input" className={styles.uploadButtonLabel}>
-                        <input
-                            id="file-upload-input" // ID ÚNICO que corresponde ao htmlFor do label
-                            type="file"
-                            name="foto_principal"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                        />
-                        Selecionar Nova Foto {/* Texto visível do botão */}
-                    </label>
-                    {selectedFile && <p className={styles.selectedFileName}>Arquivo selecionado: {selectedFile.name}</p>}
-                </div>
-                
-                <fieldset>
-                    <legend>Personalidades:</legend>
-                    {personalitiesOptions.map((p) => (
-                        <label key={p}>
+            <form onSubmit={handleSubmit} className={styles.petForm}>
+                <div className={styles.formColumns}>
+                    <div className={styles.column}>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="nome">Nome:</label>
                             <input
-                                type="checkbox"
-                                value={p}
-                                checked={formData.personalidades.includes(p)}
-                                onChange={handlePersonalityChange}
+                                type="text"
+                                id="nome"
+                                name="nome"
+                                value={formData.nome}
+                                onChange={handleChange}
+                                required
                             />
-                            {p}
-                        </label>
-                    ))}
-                </fieldset>
+                        </div>
 
-                <label>
-                    Status de Adoção:
-                    <select name="status_adocao" value={formData.status_adocao} onChange={handleChange} required>
-                        <option value="Disponível">Disponível</option>
-                        <option value="Adotado">Adotado</option>
-                        <option value="Em Processo">Em Processo</option>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="especie">Espécie:</label>
+                            <select
+                                id="especie"
+                                name="especie"
+                                value={formData.especie}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione a espécie</option>
+                                {especies.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label htmlFor="raca">Raça:</label>
+                            <input
+                                type="text"
+                                id="raca"
+                                name="raca"
+                                value={formData.raca}
+                                onChange={handleChange}
+                                placeholder="Ex: Golden Retriever, SRD"
+                            />
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label htmlFor="idade_texto">Idade (ex: 2 anos, filhote):</label>
+                            <input
+                                type="text"
+                                id="idade_texto"
+                                name="idade_texto"
+                                value={formData.idade_texto}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className={styles.column}>
+                        <div className={styles.formGroup}>
+                            <label htmlFor="porte">Porte:</label>
+                            <select
+                                id="porte"
+                                name="porte"
+                                value={formData.porte}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione o porte</option>
+                                {portes.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label htmlFor="sexo">Sexo:</label>
+                            <select
+                                id="sexo"
+                                name="sexo"
+                                value={formData.sexo}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Selecione o sexo</option>
+                                {sexos.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label htmlFor="cores">Cores:</label>
+                            <input
+                                type="text"
+                                id="cores"
+                                name="cores"
+                                value={formData.cores}
+                                onChange={handleChange}
+                                placeholder="Ex: Branco e preto, Tricolor"
+                            />
+                        </div>
+
+                        {/* SEÇÃO DE UPLOAD DE IMAGEM - INPUT NATIVO */}
+                        <div className={styles.formGroup}>
+                            <div className={styles.currentImageContainer}>
+                                <label>Foto Principal Atual:</label>
+                                {currentImageUrl ? (
+                                    <img src={currentImageUrl} alt="Foto atual do pet" className={styles.currentPetImage} />
+                                ) : (
+                                    <div className={styles.noImagePreview}>Nenhuma imagem atual</div>
+                                )}
+                            </div>
+                            <input
+                                type="file"
+                                name="foto_principal"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                            />
+                            {selectedFile && <p className={styles.selectedFileName}>Arquivo selecionado: {selectedFile.name}</p>}
+                        </div>
+                    </div>
+                </div> {/* FIM DO formColumns */}
+
+                {/* CAMPOS DE LARGURA TOTAL (TEXTAREAS E CHECKBOXES) */}
+                <div className={styles.formGroup}>
+                    <label htmlFor="saude">Informações de Saúde:</label>
+                    <textarea
+                        id="saude"
+                        name="saude"
+                        value={formData.saude}
+                        onChange={handleChange}
+                        placeholder="Ex: Vacinado, vermifugado, castrado, possui alergia a..."
+                    ></textarea>
+                </div>
+
+                <div className={styles.formGroup}>
+                    <label>Personalidades:</label>
+                    <div className={styles.checkboxGroup}>
+                        {personalitiesOptions.map((p) => (
+                            <label key={p} className={styles.checkboxItem}>
+                                <input
+                                    type="checkbox"
+                                    value={p}
+                                    checked={formData.personalidades.includes(p)}
+                                    onChange={handlePersonalityChange}
+                                />
+                                {p}
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                    <label htmlFor="descricao">Descrição:</label>
+                    <textarea
+                        id="descricao"
+                        name="descricao"
+                        value={formData.descricao}
+                        onChange={handleChange}
+                        required
+                        placeholder="Conte um pouco sobre o animal..."
+                    ></textarea>
+                </div>
+
+                <div className={styles.formGroup}>
+                    <label htmlFor="status_adocao">Status de Adoção:</label>
+                    <select
+                        id="status_adocao"
+                        name="status_adocao"
+                        value={formData.status_adocao}
+                        onChange={handleChange}
+                        required
+                    >
+                        {statusAdocaoOptions.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
                     </select>
-                </label>
+                </div>
 
-                <button type="submit">Salvar Alterações</button>
+                <button type="submit" className={styles.submitButton}>
+                    Salvar Alterações
+                </button>
             </form>
         </div>
     );

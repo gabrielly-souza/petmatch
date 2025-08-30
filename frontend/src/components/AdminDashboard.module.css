@@ -1,0 +1,81 @@
+/* src/pages/AdminDashboardPage.module.css */
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh; /* Ocupa a maior parte da tela */
+    font-size: 1.2em;
+    color: #555;
+}
+
+.adminTitle {
+    text-align: center;
+    margin-top: 40px;
+    margin-bottom: 30px;
+    color: #333; /* Cor neutra, ajuste conforme o tema do seu PetMatch */
+}
+
+.adminContainer {
+    display: flex;
+    max-width: 1200px; /* Largura máxima para o conteúdo central */
+    margin: 0 auto; /* Centraliza o contêiner */
+    gap: 30px; /* Espaçamento entre a sidebar e a área de conteúdo */
+    padding: 20px; /* Espaçamento interno */
+}
+
+.contentArea {
+    flex-grow: 1; /* Faz a área de conteúdo ocupar o espaço restante */
+    background-color: #fff; /* Fundo branco para a área de conteúdo */
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra suave para destacar */
+}
+
+.tablePlaceholder {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px dashed #ccc; /* Borda tracejada para indicar que é um placeholder */
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.tablePlaceholder h4 {
+    margin-top: 0;
+    color: #444;
+}
+
+.tablePlaceholder ul {
+    list-style: none;
+    padding: 0;
+}
+
+.tablePlaceholder li {
+    background-color: #f3f3f3;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tablePlaceholder li span {
+    font-weight: bold;
+    color: #007bff; /* Ou a cor azul principal do seu tema */
+}
+
+.tablePlaceholder li button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.tablePlaceholder li button:hover {
+    background-color: #0056b3;
+}

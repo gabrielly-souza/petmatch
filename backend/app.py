@@ -1,9 +1,11 @@
+# app.py
+
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, decode_token, get_jwt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, decode_token, get_jwt, verify_jwt_in_request, current_user
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, DecodeError, InvalidSignatureError, InvalidAudienceError, InvalidIssuerError
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -11,6 +13,7 @@ import json
 from datetime import timedelta
 import traceback
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 # 1. CARREGAR VARIÁVEIS DE AMBIENTE
 load_dotenv()
@@ -18,7 +21,7 @@ load_dotenv()
 # 2. CRIAR A INSTÂNCIA DO FLASK APP
 app = Flask(__name__)
 
-# 3. CONFIGURAÇÕES DO APP (CORS, DB, SECRET_KEY, JWT, BCrypt, Gemini)
+# 3. CONFIGURAÇÕES DO APP (CORS, DB, SECRET_KEY, JWT, Bcrypt, Gemini)
 CORS(app, resources={r"/api/*": {
     "origins": "http://localhost:3000",
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -29,9 +32,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:2802@localhost:54
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "8063a830296b5dc210babc3399e32e2b")
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "b3fb61ecd8eaa84d224acd18a81b604995649841a9a8a52812ce690148105f35")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
+# --- Configurações JWT e Secret Key ---
+
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "8063a830296b5dc210babc3399e32e2b") # Seu valor original
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "b3fb61ecd8eaa84d224acd18a81b604995649841a9a8a52812ce690148105f35") # Seu valor original
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24) # Seu valor original
 
 # Com Flask-JWT-Extended v4.x.x, essa configuração deve funcionar corretamente
 app.config["JWT_CSRF_ENABLED"] = False
@@ -40,7 +45,7 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 # ========================================================================
-# MANIPULADORES DE ERRO PERSONALIZADOS PARA JWT-EXTENDED
+# MANIPULADORES DE ERRO PERSONALIZADOS PARA JWT-EXTENDED 
 # ========================================================================
 @jwt.unauthorized_loader
 def unauthorized_response(callback):
@@ -60,11 +65,11 @@ def revoked_token_response(callback):
 
 # ========================================================================
 
-# Configurações de Upload de Arquivos
-UPLOAD_FOLDER = 'uploads' # Pasta para salvar as fotos. Será criada na raiz do projeto Flask.
+# Configurações de Upload de Arquivos (Seu código original)
+UPLOAD_FOLDER = 'uploads' # Pasta para salvar as fotos. 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # Limite de 16MB para o arquivo
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
@@ -72,7 +77,9 @@ if not GOOGLE_API_KEY:
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
-# 4. DEFINIÇÃO DOS MODELOS (CLASSES PYTHON QUE REPRESENTAM SUAS TABELAS)
+# 4. DEFINIÇÃO DOS MODELOS 
+
+# --- Modelo Usuario ---
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -82,7 +89,15 @@ class Usuario(db.Model):
     telefone = db.Column(db.String(20))
     endereco = db.Column(db.String(255))
     data_cadastro = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # NOVO: Para inativar usuários
 
+    def set_password(self, password): # NOVO: Adicionado para consistência, se não tiver
+        self.senha_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def check_password(self, password): # NOVO: Adicionado para consistência, se não tiver
+        return bcrypt.check_password_hash(self.senha_hash, password)
+
+# --- Modelo OngProtetor  ---
 class OngProtetor(db.Model):
     __tablename__ = 'ongs_protetores'
     id = db.Column(db.Integer, primary_key=True)
@@ -93,8 +108,35 @@ class OngProtetor(db.Model):
     endereco = db.Column(db.String(255))
     cnpj_cpf = db.Column(db.String(18), unique=True)
     data_cadastro = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
-    aprovado = db.Column(db.Boolean, default=False)
+    aprovado = db.Column(db.Boolean, default=False) 
+    is_active = db.Column(db.Boolean, default=True, nullable=False) 
 
+    def set_password(self, password): 
+        self.senha_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def check_password(self, password): 
+        return bcrypt.check_password_hash(self.senha_hash, password)
+
+# --- MODELO PARA ADMINISTRADORES ---
+class Admin(db.Model):
+    __tablename__ = 'admins'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    senha_hash = db.Column(db.String(255), nullable=False)
+    data_cadastro = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # Admins podem ser inativados
+
+    def set_password(self, password):
+        self.senha_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.senha_hash, password)
+
+    def __repr__(self):
+        return f'<Admin {self.username}>'
+
+# --- Modelo Animal ---
 class Animal(db.Model):
     __tablename__ = 'animais'
     id = db.Column(db.Integer, primary_key=True)
@@ -112,7 +154,9 @@ class Animal(db.Model):
     data_cadastro = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
     ong_protetor_id = db.Column(db.Integer, db.ForeignKey('ongs_protetores.id'), nullable=False)
     ong_protetor = db.relationship('OngProtetor', backref=db.backref('animais', lazy=True))
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # NOVO: Para inativar/ativar pets
 
+# --- Outros Modelos  ---
 class Personalidade(db.Model):
     __tablename__ = 'personalidades'
     id = db.Column(db.Integer, primary_key=True)
@@ -150,14 +194,14 @@ class InteracaoChatbot(db.Model):
     usuario = db.relationship('Usuario', backref=db.backref('interacoes_chatbot', lazy=True))
 
 
-# 5. FUNÇÕES AUXILIARES
-
+# 5. FUNÇÕES AUXILIARES 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def buscar_pets_por_criterios_db(especie=None, porte=None, temperamento_keywords=[], energia=None, idade_texto_pref=None):
-    query = Animal.query
+    # NOVO: Filtra apenas por pets ativos e disponíveis
+    query = Animal.query.filter_by(is_active=True, status_adocao='Disponível')
 
     if especie:
         query = query.filter(db.func.lower(Animal.especie) == especie.lower())
@@ -179,7 +223,7 @@ def buscar_pets_por_criterios_db(especie=None, porte=None, temperamento_keywords
     
     pets_data = []
     for pet in results:
-        personalidades_nomes = [p.personalidade.nome for p in pet.personalidades_list]
+        personalidades_nomes = [p.personalidade.nome for p in pet.personalidades_list if p.personalidade] # NOVO: Adicionado if p.personalidade
         pets_data.append({
             "id": pet.id,
             "nome": pet.nome,
@@ -198,7 +242,7 @@ def buscar_pets_por_criterios_db(especie=None, porte=None, temperamento_keywords
     return pets_data
 
 
-# 6. INÍCIO DA SESSÃO DE CHAT COM PROMPT (SE FOR GLOBAL)
+# 6. INÍCIO DA SESSÃO DE CHAT COM PROMPT 
 chat_sessions = {}
 
 @app.before_request
@@ -238,22 +282,52 @@ def setup_chat():
         }])
     chat = chat_sessions['default_chat_session']
 
+# --- Autorização ---
+def admin_required():
+
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request() # Verifica se o token JWT está presente e é válido
+            current_user_identity_str = get_jwt_identity()
+            current_user_identity = json.loads(current_user_identity_str)
+            
+            if current_user_identity.get("role") != "admin":
+                return jsonify({"message": "Acesso não autorizado: Requer role de administrador"}), 403
+            return fn(*args, **kwargs)
+        return decorator
+    return wrapper
+
+def ong_protetor_required():
+    """Decorator para proteger rotas, permitindo acesso a ONGs/Protetores e administradores."""
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+            current_user_identity_str = get_jwt_identity()
+            current_user_identity = json.loads(current_user_identity_str)
+
+            user_role = current_user_identity.get("role")
+            if user_role not in ["ong_protetor", "admin"]: # Admin também pode acessar rotas de ONG
+                return jsonify({"message": "Acesso não autorizado: Requer role de ONG/Protetor ou Administrador"}), 403
+            return fn(*args, **kwargs)
+        return decorator
+    return wrapper
 
 # 7. ROTAS FLASK
 
-# --- Rota para buscar informações de contato da ONG/Protetor ---
+# --- Rota para buscar informações de contato da ONG/Protetor (Seu código original) ---
 @app.route('/api/ong-protetor/<int:ong_protetor_id>/contact', methods=['GET'])
-# Removi o @jwt_required() para permitir acesso público, mas você pode adicionar de volta se precisar.
 def get_ong_protetor_contact(ong_protetor_id):
     try:
         ong_protetor = OngProtetor.query.get(ong_protetor_id)
         
-        if not ong_protetor:
-            return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+        if not ong_protetor or not ong_protetor.aprovado or not ong_protetor.is_active: # NOVO: Verifica is_active
+            return jsonify({"message": "ONG/Protetor não encontrado ou não disponível."}), 404
 
         contact_data = {
             "id": ong_protetor.id,
-            "nome_organizacao": ong_protetor.nome_organizacao, # Usando nome_organizacao para ONG/Protetor
+            "nome_organizacao": ong_protetor.nome_organizacao,
             "email": ong_protetor.email,
             "telefone": ong_protetor.telefone,
             "endereco": ong_protetor.endereco,
@@ -271,8 +345,8 @@ def get_animal_details(animal_id):
     try:
         animal = Animal.query.get(animal_id)
         
-        if not animal:
-            return jsonify({"message": "Animal não encontrado."}), 404
+        if not animal or not animal.is_active or animal.status_adocao != 'Disponível': # NOVO: Verifica is_active
+            return jsonify({"message": "Animal não encontrado ou não disponível para adoção."}), 404
         
         personalidades_nomes = []
         for ap in animal.personalidades_list:
@@ -292,7 +366,7 @@ def get_animal_details(animal_id):
             "descricao": animal.descricao,
             "foto_principal_url": animal.foto_principal_url,
             "status_adocao": animal.status_adocao,
-            "ong_protetor_id": animal.ong_protetor_id, # ESSENCIAL PARA O FRONTEND
+            "ong_protetor_id": animal.ong_protetor_id,
             "personalidades": personalidades_nomes
         }
         return jsonify(animal_data), 200
@@ -318,6 +392,7 @@ def register_user():
     if not email or not senha:
         return jsonify({"message": "Email e senha são obrigatórios."}), 400
 
+    # Registro de ONG/Protetor (Seu código original)
     if nome_organizacao and cnpj_cpf:
         if OngProtetor.query.filter_by(email=email).first():
             return jsonify({"message": "Email já registrado para ONG/Protetor."}), 409
@@ -330,11 +405,13 @@ def register_user():
             telefone=telefone,
             endereco=endereco,
             cnpj_cpf=cnpj_cpf,
-            aprovado=False
+            aprovado=False, # ONGs precisam de aprovação
+            is_active=True # NOVO: Ativo por padrão, mas pode ser inativado por admin
         )
         db.session.add(new_ong)
         db.session.commit()
         return jsonify({"message": "ONG/Protetor registrado com sucesso! Aguardando aprovação.", "role": "ong_protetor"}), 201
+    # Registro de Usuário Comum (Seu código original)
     else:
         if Usuario.query.filter_by(email=email).first():
             return jsonify({"message": "Email já registrado para usuário."}), 409
@@ -348,7 +425,8 @@ def register_user():
             email=email,
             senha_hash=hashed_password,
             telefone=telefone,
-            endereco=endereco
+            endereco=endereco,
+            is_active=True # NOVO: Usuários comuns são ativos por padrão
         )
         db.session.add(new_user)
         db.session.commit()
@@ -363,27 +441,40 @@ def login_user():
     if not email or not senha:
         return jsonify({"message": "Email e senha são obrigatórios."}), 400
 
+    # --- NOVO: 1. Tentar login como Admin ---
+    admin_user = Admin.query.filter_by(email=email).first()
+    if admin_user and admin_user.check_password(senha):
+        if not admin_user.is_active: # NOVO: Verifica se o admin está ativo
+            return jsonify({"message": "Sua conta de administrador está inativa."}), 403
+        access_token = create_access_token(identity=json.dumps({'id': admin_user.id, 'role': 'admin'}))
+        return jsonify(access_token=access_token, message="Login de administrador bem-sucedido!", role="admin", user_id=admin_user.id), 200
+
+    # --- 2. Tentar login como Usuário Comum (Seu código original + NOVO: is_active) ---
     user = Usuario.query.filter_by(email=email).first()
     if user and bcrypt.check_password_hash(user.senha_hash, senha):
+        if not user.is_active: # NOVO: Verifica se o usuário está ativo
+            return jsonify({"message": "Sua conta de usuário está inativa. Por favor, entre em contato com o suporte."}), 403
         access_token = create_access_token(identity=json.dumps({'id': user.id, 'role': 'usuario'}))
-        return jsonify(access_token=access_token, message="Login de usuário bem-sucedido!", role="usuario"), 200
+        return jsonify(access_token=access_token, message="Login de usuário bem-sucedido!", role="usuario", user_id=user.id), 200
 
+    # --- 3. Tentar login como ONG/Protetor (Seu código original + NOVO: is_active) ---
     ong_protetor = OngProtetor.query.filter_by(email=email).first()
     if ong_protetor and bcrypt.check_password_hash(ong_protetor.senha_hash, senha):
-        if not ong_protetor.aprovado:
-            return jsonify({"message": "Sua conta de ONG/Protetor ainda não foi aprovada."}), 403
+        if not ong_protetor.is_active: # NOVO: Verifica se a ONG está ativa
+            return jsonify({"message": "Sua conta de ONG/Protetor está inativa. Por favor, entre em contato com o suporte."}), 403
+        if not ong_protetor.aprovado: # Já existia
+            return jsonify({"message": "Sua conta de ONG/Protetor ainda não foi aprovada. Aguarde a moderação."}), 403
         
         expires = timedelta(hours=24)
-        
         access_token = create_access_token(
             identity=json.dumps({'id': ong_protetor.id, 'role': 'ong_protetor'}),
             expires_delta=expires
         )
-        return jsonify(access_token=access_token, message="Login de ONG/Protetor bem-sucedido!", role="ong_protetor"), 200
+        return jsonify(access_token=access_token, message="Login de ONG/Protetor bem-sucedido!", role="ong_protetor", user_id=ong_protetor.id), 200
         
     return jsonify({"message": "Email ou senha inválidos."}), 401
 
-# --- Rota da API de Chatbot ---
+# --- Rota da API de Chatbot (Seu código original) ---
 @app.route('/api/chat', methods=['POST'])
 def chat_endpoint():
     data = request.get_json()
@@ -454,7 +545,8 @@ def chat_endpoint():
 @app.route('/api/animals', methods=['GET'])
 def get_animals():
     try:
-        animals = Animal.query.filter_by(status_adocao='Disponível').all()
+        # NOVO: Filtra apenas animais ativos e disponíveis para a listagem pública
+        animals = Animal.query.filter_by(status_adocao='Disponível', is_active=True).all()
         animals_data = []
         for animal in animals:
             personalidades_nomes = []
@@ -486,6 +578,7 @@ def get_animals():
 
 @app.route('/api/animals', methods=['POST'])
 @jwt_required()
+@ong_protetor_required() # NOVO: Usa o decorator para proteger a rota
 def create_animal():
     file_path = None # Inicializa para garantir que está sempre definido
 
@@ -499,12 +592,21 @@ def create_animal():
         user_id = current_user_identity.get('id')
         user_role = current_user_identity.get('role')
 
-        if user_role != 'ong_protetor':
-            return jsonify({"message": "Apenas ONGs/Protetores podem cadastrar animais."}), 403
+        # A verificação de role já é feita pelo decorator, mas mantemos a verificação de aprovação
+        if user_role == 'ong_protetor':
+            ong_protetor = OngProtetor.query.get(user_id)
+            if not ong_protetor or not ong_protetor.aprovado or not ong_protetor.is_active: # NOVO: Verifica is_active
+                return jsonify({"message": "ONG/Protetor não encontrado, não aprovado ou inativo."}), 403
+        elif user_role == 'admin': # NOVO: Admin também pode cadastrar animais
+            admin_user = Admin.query.get(user_id)
+            if not admin_user or not admin_user.is_active:
+                return jsonify({"message": "Administrador não encontrado ou inativo."}), 403
+            # Se for admin, o animal será associado ao ID do admin.
+            # Você pode querer uma lógica diferente aqui, como permitir que o admin selecione uma ONG.
+            # Por simplicidade, associamos ao ID do admin por enquanto.
+        else:
+            return jsonify({"message": "Apenas ONGs/Protetores ou Administradores podem cadastrar animais."}), 403
 
-        ong_protetor = OngProtetor.query.get(user_id)
-        if not ong_protetor or not ong_protetor.aprovado:
-            return jsonify({"message": "ONG/Protetor não encontrado ou não aprovado."}), 403
 
         foto_url = None
         if 'foto_principal' in request.files:
@@ -537,7 +639,7 @@ def create_animal():
 
         required_fields = ["nome", "especie", "porte", "idade_texto", "sexo", "descricao"]
         for field in required_fields:
-            if not request.form.get(field): # Usa request.form.get para verificar campos
+            if not request.form.get(field):
                 if file_path and os.path.exists(file_path):
                     os.remove(file_path)
                 return jsonify({"message": f"Campo '{field}' é obrigatório."}), 400
@@ -562,7 +664,8 @@ def create_animal():
             descricao=descricao,
             foto_principal_url=foto_url,
             status_adocao=status_adocao,
-            ong_protetor_id=user_id
+            ong_protetor_id=user_id, # O ID da ONG/Protetor ou Admin logado
+            is_active=True # NOVO: Novo animal é ativo por padrão
         )
 
         db.session.add(novo_animal)
@@ -575,22 +678,23 @@ def create_animal():
         db.session.commit()
 
         return jsonify({"message": "Animal cadastrado com sucesso!", "animal_id": novo_animal.id}), 201
-    except Exception as e: # Captura exceções mais genéricas para logs
+    except Exception as e:
         if 'file_path' in locals() and file_path and os.path.exists(file_path):
             os.remove(file_path)
         print(f"ERRO ao criar animal: {str(e)}")
         traceback.print_exc()
         return jsonify({"message": f"Erro ao cadastrar animal: {str(e)}"}), 500
 
-# Rota para servir arquivos estáticos (fotos)
+# Rota para servir arquivos estáticos (fotos) (Seu código original)
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-# Rota para obter animais de uma ONG/Protetor específica (protegida por JWT)
+# Rota para obter animais de uma ONG/Protetor específica (protegida por JWT) (Seu código original + NOVO: Admin pode ver todos)
 @app.route('/api/my-animals', methods=['GET'])
 @jwt_required()
+@ong_protetor_required() # NOVO: Usa o decorator para proteger a rota
 def get_my_animals():
     try:
         current_user_identity_str = get_jwt_identity()
@@ -598,11 +702,12 @@ def get_my_animals():
         user_id = current_user_identity.get('id')
         user_role = current_user_identity.get('role')
 
-        if user_role != 'ong_protetor':
-            return jsonify({"message": "Apenas ONGs/Protetores podem acessar esta rota."}), 403
-
-        # Busca animais que pertencem à ONG/Protetor logada
-        my_animals = Animal.query.filter_by(ong_protetor_id=user_id).all()
+        # Se for admin, pode ver todos os animais. Se for ONG, só os seus.
+        if user_role == 'admin':
+            my_animals = Animal.query.all()
+        else: # user_role == 'ong_protetor'
+            my_animals = Animal.query.filter_by(ong_protetor_id=user_id).all()
+            
         animals_data = []
         for animal in my_animals:
             personalidades_nomes = [p.personalidade.nome for p in animal.personalidades_list if p.personalidade]
@@ -620,7 +725,8 @@ def get_my_animals():
                 "foto_principal_url": animal.foto_principal_url,
                 "status_adocao": animal.status_adocao,
                 "ong_protetor_id": animal.ong_protetor_id,
-                "personalidades": personalidades_nomes
+                "personalidades": personalidades_nomes,
+                "is_active": animal.is_active # NOVO: Incluir status de ativo
             })
         return jsonify(animals_data), 200
     except Exception as e:
@@ -628,7 +734,7 @@ def get_my_animals():
         traceback.print_exc()
         return jsonify({"message": f"Erro interno do servidor ao buscar 'meus' animais: {str(e)}"}), 500
     
-# Adicione esta rota se você tiver uma página de "minha conta" para usuários
+# Adicione esta rota se você tiver uma página de "minha conta" para usuários (Seu código original + NOVO: Admin)
 @app.route('/api/user/me', methods=['GET', 'PUT']) # Rota para GET e PUT
 @jwt_required()
 def get_user_profile():
@@ -645,16 +751,12 @@ def get_user_profile():
             user = Usuario.query.get(user_id)
             if not user:
                 return jsonify({"message": "Usuário não encontrado."}), 404
+            if not user.is_active: # NOVO: Não permite editar perfil se inativo
+                return jsonify({"message": "Sua conta está inativa e não pode ser editada."}), 403
 
-            # Campos para atualização
             user.nome = data.get('nome', user.nome)
-            # Email não deve ser alterado via esta rota (geralmente exige processo de verificação)
-            # user.email = data.get('email', user.email) 
-
-            # VALIDAÇÃO E LIMPEZA DE TELEFONE E ENDEREÇO AQUI:
-            # Telefone
+            
             telefone_input = data.get('telefone')
-            # Verifica se o campo foi enviado E não está vazio/apenas espaços
             if not telefone_input or not str(telefone_input).strip():
                 return jsonify({"message": "O campo Telefone é obrigatório."}), 400
             
@@ -663,9 +765,7 @@ def get_user_profile():
                 return jsonify({"message": "Formato de telefone inválido. Deve ter 10 ou 11 dígitos numéricos (DDD + número)."}), 400
             user.telefone = cleaned_telefone
             
-            # Endereço
             endereco_input = data.get('endereco')
-            # Verifica se o campo foi enviado E não está vazio/apenas espaços
             if not endereco_input or not str(endereco_input).strip():
                 return jsonify({"message": "O campo Endereço é obrigatório."}), 400
             
@@ -678,27 +778,24 @@ def get_user_profile():
             return jsonify({"message": "Perfil de usuário atualizado com sucesso!", "profile": {
                 "id": user.id,
                 "nome": user.nome,
-                "email": user.email, # Retorna o email, mesmo que não seja atualizado
+                "email": user.email,
                 "telefone": user.telefone,
                 "endereco": user.endereco,
-                "role": "usuario"
+                "role": "usuario",
+                "is_active": user.is_active # NOVO: Incluir status de ativo
             }}), 200
 
         elif user_role == 'ong_protetor':
             ong = OngProtetor.query.get(user_id)
             if not ong:
                 return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+            if not ong.is_active: # NOVO: Não permite editar perfil se inativo
+                return jsonify({"message": "Sua conta está inativa e não pode ser editada."}), 403
             
-            # Campos para atualização
             ong.nome_organizacao = data.get('nome_organizacao', ong.nome_organizacao)
             ong.cnpj_cpf = data.get('cnpj_cpf', ong.cnpj_cpf)
-            # Email não deve ser alterado via esta rota
-            # ong.email = data.get('email', ong.email)
 
-            # VALIDAÇÃO E LIMPEZA DE TELEFONE E ENDEREÇO AQUI PARA ONG/PROTETOR:
-            # Telefone
             telefone_input = data.get('telefone')
-            # Verifica se o campo foi enviado E não está vazio/apenas espaços
             if not telefone_input or not str(telefone_input).strip():
                 return jsonify({"message": "O campo Telefone é obrigatório."}), 400
             
@@ -707,9 +804,7 @@ def get_user_profile():
                 return jsonify({"message": "Formato de telefone inválido. Deve ter 10 ou 11 dígitos numéricos (DDD + número)."}), 400
             ong.telefone = cleaned_telefone
             
-            # Endereço
             endereco_input = data.get('endereco')
-            # Verifica se o campo foi enviado E não está vazio/apenas espaços
             if not endereco_input or not str(endereco_input).strip():
                 return jsonify({"message": "O campo Endereço é obrigatório."}), 400
             
@@ -722,15 +817,35 @@ def get_user_profile():
             return jsonify({"message": "Perfil de ONG/Protetor atualizado com sucesso!", "profile": {
                 "id": ong.id,
                 "nome_organizacao": ong.nome_organizacao,
-                "email": ong.email, # Retorna o email, mesmo que não seja atualizado
+                "email": ong.email,
                 "telefone": ong.telefone,
                 "endereco": ong.endereco,
                 "cnpj_cpf": ong.cnpj_cpf,
                 "aprovado": ong.aprovado,
-                "role": "ong_protetor"
+                "role": "ong_protetor",
+                "is_active": ong.is_active # NOVO: Incluir status de ativo
+            }}), 200
+        elif user_role == 'admin': # NOVO: Admin também pode ter um perfil para edição
+            admin_user = Admin.query.get(user_id)
+            if not admin_user:
+                return jsonify({"message": "Administrador não encontrado."}), 404
+            if not admin_user.is_active: # NOVO: Não permite editar perfil se inativo
+                return jsonify({"message": "Sua conta está inativa e não pode ser editada."}), 403
+            
+            admin_user.username = data.get('username', admin_user.username)
+            # Email não deve ser alterado via esta rota (geralmente exige processo de verificação)
+            # admin_user.email = data.get('email', admin_user.email)
+            
+            db.session.commit()
+            return jsonify({"message": "Perfil de administrador atualizado com sucesso!", "profile": {
+                "id": admin_user.id,
+                "username": admin_user.username,
+                "email": admin_user.email,
+                "role": "admin",
+                "is_active": admin_user.is_active
             }}), 200
 
-    # Lógica para requisições GET (Obter perfil)
+    # Lógica para requisições GET (Obter perfil) (Seu código original + NOVO: Admin)
     elif request.method == 'GET':
         if user_role == 'usuario':
             user = Usuario.query.get(user_id)
@@ -741,7 +856,8 @@ def get_user_profile():
                     "email": user.email,
                     "telefone": user.telefone,
                     "endereco": user.endereco,
-                    "role": "usuario"
+                    "role": "usuario",
+                    "is_active": user.is_active # NOVO: Incluir status de ativo
                 }), 200
         elif user_role == 'ong_protetor':
             ong = OngProtetor.query.get(user_id)
@@ -754,14 +870,26 @@ def get_user_profile():
                     "endereco": ong.endereco,
                     "cnpj_cpf": ong.cnpj_cpf,
                     "aprovado": ong.aprovado,
-                    "role": "ong_protetor"
+                    "role": "ong_protetor",
+                    "is_active": ong.is_active # NOVO: Incluir status de ativo
+                }), 200
+        elif user_role == 'admin': # NOVO: Obter perfil de admin
+            admin_user = Admin.query.get(user_id)
+            if admin_user:
+                return jsonify({
+                    "id": admin_user.id,
+                    "username": admin_user.username,
+                    "email": admin_user.email,
+                    "role": "admin",
+                    "is_active": admin_user.is_active
                 }), 200
     
     return jsonify({"message": "Perfil não encontrado ou acesso negado."}), 404
 
-# Adicione esta rota para atualizar animais
+# Adicione esta rota para atualizar animais (Seu código original + NOVO: Admin pode editar)
 @app.route('/api/animals/<int:animal_id>', methods=['PUT'])
 @jwt_required()
+@ong_protetor_required() # NOVO: Usa o decorator para proteger a rota
 def update_animal(animal_id):
     current_user_identity_str = get_jwt_identity()
     current_user_identity = json.loads(current_user_identity_str)
@@ -772,14 +900,10 @@ def update_animal(animal_id):
     if not animal:
         return jsonify({"message": "Animal não encontrado."}), 404
 
-    if user_role != 'ong_protetor' or animal.ong_protetor_id != user_id:
+    # Permite que a ONG proprietária ou um admin edite o animal
+    if not (user_role == 'admin' or (user_role == 'ong_protetor' and animal.ong_protetor_id == user_id)):
         return jsonify({"message": "Você não tem permissão para editar este animal."}), 403
 
-    # Remove o código de upload de arquivo daqui se você não permite a atualização de fotos via PUT
-    # Se permitir, a lógica deve ser similar à de create_animal, com tratamento para arquivo novo/existente.
-    # Por simplicidade, assumindo que a foto_principal_url não é atualizada aqui.
-
-    # Pega dados de JSON, pois PUTs geralmente enviam JSON, não FormData, a menos que especificado
     data = request.get_json() 
 
     animal.nome = data.get('nome', animal.nome)
@@ -792,13 +916,11 @@ def update_animal(animal_id):
     animal.saude = data.get('saude', animal.saude)
     animal.descricao = data.get('descricao', animal.descricao)
     animal.status_adocao = data.get('status_adocao', animal.status_adocao)
+    animal.is_active = data.get('is_active', animal.is_active) # NOVO: Admin pode mudar o status de ativo
 
-    # Lida com personalidades
     personalidades_nomes = data.get('personalidades', None)
     if personalidades_nomes is not None:
-        # Remove todas as associações existentes
         AnimalPersonalidade.query.filter_by(animal_id=animal.id).delete()
-        # Adiciona as novas associações
         for p_nome in personalidades_nomes:
             personalidade_db = Personalidade.query.filter_by(nome=p_nome).first()
             if personalidade_db:
@@ -816,9 +938,10 @@ def update_animal(animal_id):
         traceback.print_exc()
         return jsonify({"message": f"Erro ao atualizar animal: {str(e)}"}), 500
 
-# Adicione esta rota para deletar animais
+# Adicione esta rota para deletar animais (Seu código original + NOVO: Admin pode deletar)
 @app.route('/api/animals/<int:animal_id>', methods=['DELETE'])
 @jwt_required()
+@ong_protetor_required() # NOVO: Usa o decorator para proteger a rota
 def delete_animal(animal_id):
     current_user_identity_str = get_jwt_identity()
     current_user_identity = json.loads(current_user_identity_str)
@@ -829,20 +952,18 @@ def delete_animal(animal_id):
     if not animal:
         return jsonify({"message": "Animal não encontrado."}), 404
 
-    if user_role != 'ong_protetor' or animal.ong_protetor_id != user_id:
+    # Permite que a ONG proprietária ou um admin delete o animal
+    if not (user_role == 'admin' or (user_role == 'ong_protetor' and animal.ong_protetor_id == user_id)):
         return jsonify({"message": "Você não tem permissão para deletar este animal."}), 403
 
     try:
-        # Opcional: Remover a foto associada ao animal antes de deletar o registro
         if animal.foto_principal_url:
-            # Extrai o nome do arquivo da URL (ex: 'http://localhost:5000/uploads/foto.jpg' -> 'foto.jpg')
             filename = os.path.basename(animal.foto_principal_url)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
                 print(f"Foto {filename} removida do servidor.")
 
-        # Deleta as associações AnimalPersonalidade primeiro (devido ao CASCADE ondelete)
         AnimalPersonalidade.query.filter_by(animal_id=animal.id).delete()
         db.session.delete(animal)
         db.session.commit()
@@ -853,6 +974,185 @@ def delete_animal(animal_id):
         traceback.print_exc()
         return jsonify({"message": f"Erro ao deletar animal: {str(e)}"}), 500
 
+# --- NOVAS ROTAS DE ADMINISTRAÇÃO ---
+@app.route('/api/admin/users', methods=['GET'])
+@jwt_required()
+@admin_required()
+def admin_get_all_users():
+    """Retorna a lista de todos os usuários (comuns, ONGs/Protetores e Admins)."""
+    users_data = []
+    # Buscar usuários comuns
+    for u in Usuario.query.all():
+        users_data.append({
+            "id": u.id,
+            "nome": u.nome,
+            "email": u.email,
+            "role": "usuario",
+            "is_active": u.is_active,
+            "telefone": u.telefone,
+            "endereco": u.endereco,
+            "data_cadastro": u.data_cadastro.isoformat()
+        })
+    # Buscar ONGs/Protetores
+    for o in OngProtetor.query.all():
+        users_data.append({
+            "id": o.id,
+            "nome_organizacao": o.nome_organizacao,
+            "email": o.email,
+            "role": "ong_protetor",
+            "aprovado": o.aprovado,
+            "is_active": o.is_active,
+            "cnpj_cpf": o.cnpj_cpf,
+            "telefone": o.telefone,
+            "endereco": o.endereco,
+            "data_cadastro": o.data_cadastro.isoformat()
+        })
+    # Buscar Admins
+    for a in Admin.query.all():
+        users_data.append({
+            "id": a.id,
+            "username": a.username,
+            "email": a.email,
+            "role": "admin",
+            "is_active": a.is_active,
+            "data_cadastro": a.data_cadastro.isoformat()
+        })
+    
+    return jsonify(users_data), 200
+
+@app.route('/api/admin/users/<string:user_type>/<int:user_id>/inactivate', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_inactivate_user(user_type, user_id):
+    """Inativa um usuário (comum, ONG/Protetor ou admin)."""
+    current_admin_id = json.loads(get_jwt_identity()).get('id')
+
+    if user_type == 'usuario':
+        user = Usuario.query.get(user_id)
+    elif user_type == 'ong_protetor':
+        user = OngProtetor.query.get(user_id)
+    elif user_type == 'admin':
+        user = Admin.query.get(user_id)
+        if user and user.id == current_admin_id: # Impede que um admin inative a si mesmo
+            return jsonify({"message": "Um administrador não pode inativar a própria conta"}), 403
+    else:
+        return jsonify({"message": "Tipo de usuário inválido."}), 400
+
+    if not user:
+        return jsonify({"message": "Usuário não encontrado."}), 404
+
+    user.is_active = False
+    db.session.commit()
+    return jsonify({"message": f"Usuário {user.email if hasattr(user, 'email') else user.username} inativado."}), 200
+
+@app.route('/api/admin/users/<string:user_type>/<int:user_id>/activate', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_activate_user(user_type, user_id):
+    """Ativa um usuário (comum, ONG/Protetor ou admin)."""
+    if user_type == 'usuario':
+        user = Usuario.query.get(user_id)
+    elif user_type == 'ong_protetor':
+        user = OngProtetor.query.get(user_id)
+    elif user_type == 'admin':
+        user = Admin.query.get(user_id)
+    else:
+        return jsonify({"message": "Tipo de usuário inválido."}), 400
+
+    if not user:
+        return jsonify({"message": "Usuário não encontrado."}), 404
+
+    user.is_active = True
+    db.session.commit()
+    return jsonify({"message": f"Usuário {user.email if hasattr(user, 'email') else user.username} ativado."}), 200
+
+@app.route('/api/admin/ongs/<int:ong_id>/approve', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_approve_ong(ong_id):
+    """Aprova a conta de uma ONG/Protetor."""
+    ong = OngProtetor.query.get(ong_id)
+    if not ong:
+        return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+    
+    ong.aprovado = True
+    db.session.commit()
+    return jsonify({"message": f"ONG/Protetor {ong.nome_organizacao} aprovado."}), 200
+
+@app.route('/api/admin/ongs/<int:ong_id>/reject', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_reject_ong(ong_id):
+    """Rejeita (e inativa) a conta de uma ONG/Protetor."""
+    ong = OngProtetor.query.get(ong_id)
+    if not ong:
+        return jsonify({"message": "ONG/Protetor não encontrado."}), 404
+    
+    ong.aprovado = False # Marca como não aprovado
+    ong.is_active = False # E inativa a conta
+    db.session.commit()
+    return jsonify({"message": f"ONG/Protetor {ong.nome_organizacao} rejeitado e inativado."}), 200
+
+@app.route('/api/admin/pets', methods=['GET'])
+@jwt_required()
+@admin_required()
+def admin_get_all_pets():
+    """Retorna a lista de todos os animais no sistema (para o painel de admin)."""
+    animals = Animal.query.all()
+    animals_data = []
+    for animal in animals:
+        # NOVO: Verifica se ong_protetor existe antes de acessar nome_organizacao
+        ong_nome = animal.ong_protetor.nome_organizacao if animal.ong_protetor else "ONG Desconhecida"
+        personalidades_nomes = [p.personalidade.nome for p in animal.personalidades_list if p.personalidade]
+        animals_data.append({
+            "id": animal.id,
+            "nome": animal.nome,
+            "especie": animal.especie,
+            "raca": animal.raca,
+            "porte": animal.porte,
+            "idade_texto": animal.idade_texto,
+            "sexo": animal.sexo,
+            "cores": animal.cores,
+            "saude": animal.saude,
+            "descricao": animal.descricao,
+            "foto_principal_url": animal.foto_principal_url,
+            "status_adocao": animal.status_adocao,
+            "ong_protetor_id": animal.ong_protetor_id,
+            "ong_protetor_nome": ong_nome, # Nome da ONG para exibição
+            "personalidades": personalidades_nomes,
+            "is_active": animal.is_active,
+            "data_cadastro": animal.data_cadastro.isoformat()
+        })
+    return jsonify(animals_data), 200
+
+@app.route('/api/admin/pets/<int:animal_id>/inactivate', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_inactivate_animal(animal_id):
+    """Inativa um animal pelo painel de administração."""
+    animal = Animal.query.get(animal_id)
+    if not animal:
+        return jsonify({"message": "Animal não encontrado."}), 404
+    
+    animal.is_active = False
+    db.session.commit()
+    return jsonify({"message": f"Animal {animal.nome} inativado."}), 200
+
+@app.route('/api/admin/pets/<int:animal_id>/activate', methods=['POST'])
+@jwt_required()
+@admin_required()
+def admin_activate_animal(animal_id):
+    """Ativa um animal pelo painel de administração."""
+    animal = Animal.query.get(animal_id)
+    if not animal:
+        return jsonify({"message": "Animal não encontrado."}), 404
+    
+    animal.is_active = True
+    db.session.commit()
+    return jsonify({"message": f"Animal {animal.nome} ativado."}), 200
+
+
+# --- Inicialização do Banco de Dados e Usuário Admin Padrão ---
 if __name__ == '__main__':
     # Cria a pasta de uploads se não existir ao iniciar o app
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -861,7 +1161,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all() # Cria as tabelas se elas não existirem
         
-        # Opcional: Adicionar personalidades padrão se a tabela estiver vazia
+        # Opcional: Adicionar personalidades padrão se a tabela estiver vazia (Seu código original)
         if not Personalidade.query.first():
             print("Adicionando personalidades padrão...")
             personalidades_padrao = [
@@ -875,5 +1175,15 @@ if __name__ == '__main__':
                     db.session.add(Personalidade(nome=p_nome))
             db.session.commit()
             print("Personalidades padrão adicionadas.")
+
+        # NOVO: Criar um usuário administrador inicial se não existir
+        if not Admin.query.filter_by(username='admin').first():
+            print("Criando usuário administrador padrão...")
+            admin_user = Admin(username='admin', email='admin@petmatch.com', is_active=True)
+            admin_user.set_password('admin123') # SENHA PADRÃO: admin123 - MUDE ISSO EM PRODUÇÃO!
+            db.session.add(admin_user)
+            db.session.commit()
+            print("Usuário administrador 'admin' criado com sucesso. Senha: 'admin123'.")
+            print("POR FAVOR, MUDE A SENHA DO ADMINISTRADOR PADRÃO EM PRODUÇÃO!")
 
     app.run(debug=True, port=5000)
