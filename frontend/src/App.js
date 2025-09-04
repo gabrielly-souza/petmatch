@@ -4,23 +4,22 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-ro
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Importe o Navbar
-import Navbar from './components/Navbar';
+import Navbar from './components//navbar/Navbar';
 
 // Importe suas páginas
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import AddPetForm from './components/AddPetForm';
-import OngAnimalManagementPage from './components/OngAnimalManagement';
-import EditPetForm from './pages/EditPetForm';
-import PetDetails from './components/PetDetails';
-import PetList from './components/PetList';
-import ProfilePage from './pages/ProfilePage';
-import ForgotPassword from './components/ForgotPassword';
+import HomePage from './components/homepage/HomePage';
+import LoginPage from './components/login/LoginPage';
+import RegisterPage from './components/login/RegisterPage';
+import AddPetForm from './components/pets/AddPetForm';
+import OngAnimalManagementPage from './components/user/OngAnimalManagement';
+import EditPetForm from './components/pets/EditPetForm';
+import PetDetails from './components/pets/PetDetails';
+import PetList from './components/pets/PetList';
+import ProfilePage from './components/user/ProfilePage';
+import ForgotPassword from './components/login/ForgotPassword';
 
-// --- AGORA COM OS NOVOS NOMES ---
-import AdminDashboard from './pages/AdminDashboard'; // Importa a página de administração
-import AdminRoute from './components/AdminRoute'; // Importa o componente de rota protegida para admin
+import AdminDashboard from './components/user/AdminDashboard'; 
+import AdminRoute from './components/user/AdminRoute'; 
 
 // Componente para rotas protegidas que exigem APENAS autenticação
 const ProtectedRoute = ({ children }) => {

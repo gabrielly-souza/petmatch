@@ -1,4 +1,3 @@
-// src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext(null);
@@ -8,7 +7,7 @@ export const AuthProvider = ({ children }) => {
     const [userRole, setUserRole] = useState(null);
     const [userId, setUserId] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [loading, setLoading] = useState(true); // <-- NOVO: Estado de carregamento
+    const [loading, setLoading] = useState(true); 
 
     // Efeito para carregar dados do localStorage ao iniciar
     useEffect(() => {
@@ -32,7 +31,7 @@ export const AuthProvider = ({ children }) => {
             // Limpa o localStorage se houver algum erro na leitura
             localStorage.clear();
         } finally {
-            setLoading(false); // <-- NOVO: Define loading como false após tentar carregar do localStorage
+            setLoading(false); 
         }
     }, []); // Executa apenas uma vez na montagem do componente
 
@@ -85,7 +84,7 @@ export const AuthProvider = ({ children }) => {
         userRole,
         userId,
         isAuthenticated,
-        loading, // <-- NOVO: Adiciona 'loading' ao valor do contexto
+        loading, 
         login,
         logout,
         getToken,

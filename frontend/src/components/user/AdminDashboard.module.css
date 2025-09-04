@@ -1,0 +1,81 @@
+
+
+.loadingContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh; 
+    font-size: 1.2em;
+    color: #555;
+}
+
+.adminTitle {
+    text-align: center;
+    margin-top: 40px;
+    margin-bottom: 30px;
+    color: #333; 
+}
+
+.adminContainer {
+    display: flex;
+    max-width: 1200px; 
+    margin: 0 auto; 
+    gap: 30px; 
+    padding: 20px; 
+}
+
+.contentArea {
+    flex-grow: 1; 
+    background-color: #fff; 
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+}
+
+.tablePlaceholder {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px dashed #ccc; 
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.tablePlaceholder h4 {
+    margin-top: 0;
+    color: #444;
+}
+
+.tablePlaceholder ul {
+    list-style: none;
+    padding: 0;
+}
+
+.tablePlaceholder li {
+    background-color: #f3f3f3;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tablePlaceholder li span {
+    font-weight: bold;
+    color: #007bff; 
+}
+
+.tablePlaceholder li button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.tablePlaceholder li button:hover {
+    background-color: #0056b3;
+}

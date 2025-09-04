@@ -1,0 +1,33 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap');
+
+body {
+  font-family: 'Roboto', sans-serif; /* Define Roboto como fonte padrão para o corpo */
+  color: #333333;
+  margin: 0; /* Garante que não há margem padrão no body */
+  line-height: 1.5; /* Ajuste de linha padrão */
+  background-color: #f8f8f8; /* Define um fundo claro global */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif; /* Define Poppins para títulos */
+  color: #333333;
+  margin-top: 0; /* Remove margem superior padrão */
+  margin-bottom: 0.5em; /* Pequena margem inferior para títulos */
+}
+
+a {
+  color: inherit; /* Links herdam a cor do texto pai por padrão */
+  text-decoration: none; /* Remove sublinhado padrão */
+}
+
+a:hover {
+  text-decoration: underline; /* Adiciona sublinhado no hover */
+}
+
+button {
+  cursor: pointer; /* Adiciona cursor de ponteiro para botões */
+  border: none; /* Remove borda padrão */
+  background: none; /* Remove fundo padrão */
+  padding: 0; /* Remove padding padrão */
+}
